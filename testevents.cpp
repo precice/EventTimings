@@ -10,7 +10,7 @@ using std::endl;
 int main(int argc, char *argv[])
 {
   MPI_Init(&argc, &argv);
-  EventRegistry::initialize();
+  EventRegistry::instance().initialize();
 
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
   e3.stop();
 
-  EventRegistry::finalize();
-  EventRegistry::printAll();
+  EventRegistry::instance().finalize();
+  EventRegistry::instance().printAll();
   MPI_Finalize();
 }

@@ -131,66 +131,78 @@ function at all, but global timings as well as percentages do not work this way.
 class EventRegistry
 {
 public:
-    
+  /// Deleted copy operator for singleton pattern
+  EventRegistry(EventRegistry const &) = delete;
+  
+  /// Deleted assigment operator for singleton pattern
+  void operator=(EventRegistry const &) = delete;
+
+  static EventRegistry & instance();
+  
   /// Sets the global start time
   /**
    * @param[in] applicationName A name that is added to the logfile to distinguish different participants
    */
-  static void initialize(std::string appName = "");
+  void initialize(std::string appName = "");
 
   /// Sets the global end time
-  static void finalize();
+  void finalize();
 
   /// Clears the registry. needed for tests
-  static void clear();
+  void clear();
 
   /// Finalizes the timings and calls print. Can be used as a crash handler to still get some timing results.
-  static void signal_handler(int signal);
+  void signal_handler(int signal);
 
   /// Records the event.
-  static void put(Event* event);
+  void put(Event* event);
 
   /// Returns the timestamp of the run, i.e. when the run finished
-  static std::chrono::system_clock::time_point getTimestamp();
+  std::chrono::system_clock::time_point getTimestamp();
   
   /// Returns the duration of the run in ms
   /***
    * @pre Requires finalize to be called before
    */
-  static Event::Clock::duration getDuration();
+  Event::Clock::duration getDuration();
 
-  static void collect();
+  void collect();
 
   /// Prints a verbose report to stdout and a terse one to EventTimings-AppName.log
-  static void printAll();
+  void printAll();
 
   /// Prints the result table to an arbitrary stream.
   /** terse enables a more machine readable format with one event per line, seperated by whitespace. */
-  static void print(std::ostream &out);
+  void print(std::ostream &out);
 
   /// Convenience function: Prints to std::cout
-  static void print();
+  void print();
 
-  static void writeCSV(std::string filename);
+  void writeCSV(std::string filename);
 
-  static void printGlobalStats();
+  void printGlobalStats();
 
 private:
-  static bool initialized;
-  static Event::Clock::time_point starttime;
-  static Event::Clock::duration duration;
-  static std::chrono::system_clock::time_point timestamp; // Timestamp when the run finished
+  /// Private, empty constructor for singleton pattern
+  EventRegistry() {}
+  
+  bool initialized = false;
+  Event::Clock::time_point starttime;
+  Event::Clock::duration duration;
+  
+  /// Timestamp when the run finished
+  std::chrono::system_clock::time_point timestamp;
 
   /// Map of name -> events for this rank only
-  static std::map<std::string, EventData> events;
+  std::map<std::string, EventData> events;
 
   /// Multimap of name -> EventData of events for all ranks
-  static GlobalEvents globalEvents;
+  GlobalEvents globalEvents;
 
   /// A name that is added to the logfile to distinguish different participants
-  static std::string applicationName;
+  std::string applicationName;
 
-  static MPI_Datatype MPI_EVENTDATA;
+  MPI_Datatype MPI_EVENTDATA;
 };
 
 

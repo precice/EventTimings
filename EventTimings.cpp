@@ -41,7 +41,7 @@ Event::Event(std::string eventName, Clock::duration initialDuration)
   : name(eventName),
     duration(initialDuration)
 {
-  EventRegistry::put(this);
+  EventRegistry::instance().put(this);
 }
 
 Event::Event(std::string eventName, bool barrier, bool autostart)
@@ -78,7 +78,7 @@ void Event::stop(bool barrier)
       duration += Clock::duration(stoptime - starttime);
     }
     state = State::STOPPED;
-    EventRegistry::put(this);
+    EventRegistry::instance().put(this);
     data.clear();
   }
 }
@@ -161,7 +161,7 @@ long EventData::getCount() const
 
 int EventData::getTimePercentage() const
 {
-  return (static_cast<double>(total.count()) / EventRegistry::getDuration().count()) * 100;
+  return (static_cast<double>(total.count()) / EventRegistry::instance().getDuration().count()) * 100;
 }
 
 const std::vector<int> & EventData::getData() const
@@ -185,7 +185,7 @@ void EventData::print(std::ostream &out)
 
 void EventData::writeCSV(std::ostream &out)
 {
-  std::time_t ts = std::chrono::system_clock::to_time_t(EventRegistry::getTimestamp());
+  std::time_t ts = std::chrono::system_clock::to_time_t(EventRegistry::instance().getTimestamp());
       
   out << std::put_time(std::localtime(&ts), "%F %T") << ","
       << rank << ","
@@ -209,16 +209,11 @@ void EventData::writeCSV(std::ostream &out)
 
 // -----------------------------------------------------------------------
 
-// Static members need to be initalized like that
-std::map<std::string, EventData> EventRegistry::events;
-std::multimap<std::string, EventData> EventRegistry::globalEvents;
-Event::Clock::time_point EventRegistry::starttime;
-Event::Clock::duration EventRegistry::duration = Event::Clock::duration::zero();
-std::chrono::system_clock::time_point EventRegistry::timestamp;
-
-std::string EventRegistry::applicationName = "";
-bool EventRegistry::initialized = false;
-MPI_Datatype EventRegistry::MPI_EVENTDATA;
+EventRegistry & EventRegistry::instance()
+{
+  static EventRegistry instance;
+  return instance;
+}
 
 void EventRegistry::initialize(std::string appName)
 {

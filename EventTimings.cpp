@@ -80,6 +80,7 @@ void Event::stop(bool barrier)
     state = State::STOPPED;
     EventRegistry::instance().put(this);
     data.clear();
+    duration = Clock::duration::zero();
   }
 }
 
@@ -239,7 +240,8 @@ void EventRegistry::finalize()
   duration = Event::Clock::now() - starttime;
   timestamp = std::chrono::system_clock::now();
   initialized = false;
-
+  for (auto & e : storedEvents)
+    e.second.stop();
   collect();
   MPI_Type_free(&MPI_EVENTDATA);
 }
@@ -262,6 +264,16 @@ void EventRegistry::put(Event* event)
   auto data = std::get<0>(events.emplace(event->name, event->name));
   data->second.put(event);
 }
+
+Event & EventRegistry::getStoredEvent(std::string name)
+{
+  auto insertion = storedEvents.emplace(std::piecewise_construct,
+                                        std::forward_as_tuple(name),
+                                        std::forward_as_tuple(name, false, false));
+
+  return std::get<0>(insertion)->second;
+}
+
 
 std::chrono::system_clock::time_point EventRegistry::getTimestamp()
 {
@@ -398,7 +410,7 @@ void EventRegistry::writeCSV(std::string filename)
     outfile << "Timestamp,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << "\n";
    
   std::time_t ts = std::chrono::system_clock::to_time_t(timestamp);
-  auto globalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+  // auto globalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
   std::tm tm = *std::localtime(&ts);
 
   outfile << "# Run finished at: " << std::put_time(&tm, "%F %T") << std::endl

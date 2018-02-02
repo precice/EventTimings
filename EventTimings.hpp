@@ -6,7 +6,6 @@
 #include <string>
 #include <mpi.h>
 
-
 /// Represents an event that can be started and stopped.
 /** Additionally to the duration there is a special property that can be set for a event.
 A property is a a key-value pair with a numerical value that can be used to trace certain events,
@@ -14,6 +13,9 @@ like MPI calls in an event. It is intended to be set by the user. */
 class Event
 {
 public:
+  /// An Event can't be copied.
+  Event(const Event & other) = delete;
+  
   /// Default clock type. All other chrono types are derived from it.
   using Clock = std::chrono::steady_clock;
 
@@ -157,6 +159,9 @@ public:
   /// Records the event.
   void put(Event* event);
 
+  /// Make this returning a reference or smart ptr?
+  Event & getStoredEvent(std::string name);
+
   /// Returns the timestamp of the run, i.e. when the run finished
   std::chrono::system_clock::time_point getTimestamp();
   
@@ -200,6 +205,8 @@ private:
 
   /// Map of name -> events for this rank only
   std::map<std::string, EventData> events;
+
+  std::map<std::string, Event> storedEvents;
 
   /// Multimap of name -> EventData of events for all ranks
   GlobalEvents globalEvents;

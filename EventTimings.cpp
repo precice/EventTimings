@@ -203,7 +203,7 @@ void EventData::writeCSV(std::ostream &out)
     out << d;
     first = false;
   }
-  out << "]\"" << std::endl;;
+  out << "]\"" << std::endl;
 }
 
 
@@ -228,12 +228,14 @@ void EventRegistry::initialize(std::string appName)
   MPI_Type_create_struct(4, blocklengths, displacements, types, &MPI_EVENTDATA);
   MPI_Type_commit(&MPI_EVENTDATA);
 
+  globalEvent.start(true);
   initialized = true;
 }
 
 void EventRegistry::finalize()
 {
-  MPI_Barrier(MPI_COMM_WORLD);
+  // MPI_Barrier(MPI_COMM_WORLD);
+  globalEvent.stop(true); // acts as a barrier
   duration = Event::Clock::now() - starttime;
   timestamp = std::chrono::system_clock::now();
   initialized = false;

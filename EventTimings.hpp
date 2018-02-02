@@ -184,7 +184,12 @@ public:
 
 private:
   /// Private, empty constructor for singleton pattern
-  EventRegistry() {}
+  EventRegistry()
+    : globalEvent("_GLOBAL", true, false) // Unstarted, it's started in initialize
+  {}
+
+  /// Event for measuring global time, also acts as a barrier
+  Event globalEvent;
   
   bool initialized = false;
   Event::Clock::time_point starttime;

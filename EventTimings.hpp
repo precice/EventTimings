@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <list>
 #include <map>
 #include <vector>
 #include <string>
@@ -13,12 +14,21 @@ like MPI calls in an event. It is intended to be set by the user. */
 class Event
 {
 public:
-  /// An Event can't be copied.
-  Event(const Event & other) = delete;
   
+  enum class State {
+    STOPPED = 0,
+    STARTED = 1,
+    PAUSED  = 2,
+  };
+
   /// Default clock type. All other chrono types are derived from it.
   using Clock = std::chrono::steady_clock;
 
+  using StateChanges = std::vector<std::tuple<State, Clock::duration>>;
+    
+  /// An Event can't be copied.
+  Event(const Event & other) = delete;
+  
   /// Name used to identify the timer. Events of the same name are accumulated to
   std::string name;
 
@@ -46,20 +56,16 @@ public:
 
   std::vector<int> data;
 
+  StateChanges stateChanges;
+
 private:
-  
-  enum class State {
-    STOPPED,
-    RUNNING,
-    PAUSED      
-  };
   
   Clock::time_point starttime;
   // Clock::time_point stoptime;
   Clock::duration duration = Clock::duration::zero();
   State state = State::STOPPED;
   bool _barrier = false;
-
+  
 };
 
 
@@ -72,7 +78,7 @@ public:
   EventData(std::string _name);
   
   EventData(std::string _name, int _rank, long _count, long _total,
-            long _max, long _min, std::vector<int> _data);
+            long _max, long _min, std::vector<int> _data, Event::StateChanges stateChanges);
   
   /// Adds an Events data.
   void put(Event* event);
@@ -103,9 +109,12 @@ public:
 
   void writeCSV(std::ostream &out);
 
+  void writeEventLog(std::ostream &out);
+
   Event::Clock::duration max = Event::Clock::duration::min();
   Event::Clock::duration min = Event::Clock::duration::max();
   int rank;
+  Event::StateChanges stateChanges;
   
 private:
   std::string name;
@@ -165,12 +174,10 @@ public:
   /// Returns the timestamp of the run, i.e. when the run finished
   std::chrono::system_clock::time_point getTimestamp();
   
-  /// Returns the duration of the run in ms
-  /***
-   * @pre Requires finalize to be called before
-   */
+  /// Returns the duration of the run in ms, either currently running, or fixed when run is stopped.
   Event::Clock::duration getDuration();
 
+  /// Gather EventData from all ranks on rank 0.
   void collect();
 
   /// Prints a verbose report to stdout and a terse one to EventTimings-AppName.log
@@ -185,6 +192,8 @@ public:
 
   void writeCSV(std::string filename);
 
+  void writeEventLogs(std::string filename);
+  
   void printGlobalStats();
 
 private:

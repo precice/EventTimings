@@ -26,7 +26,6 @@ void solve() {
 
 void advance() {
   auto & pe = EventRegistry::instance().getStoredEvent("Solver");
-  cout << "Type of pe = " << typeid(pe).name() << endl;
   cout << "Paused pe" << endl;
   pe.pause();
   Event e("advance");

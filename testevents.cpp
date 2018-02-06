@@ -11,8 +11,8 @@ using std::endl;
 double rand(double min, double max) {
   std::random_device rd;
   std::uniform_real_distribution<double> dist(min, max);
-  // return dist(rd);
-  return 1;
+  return dist(rd);
+  // return 1;
 }
 
 void sleep(int ms) {
@@ -21,7 +21,7 @@ void sleep(int ms) {
 
 void solve() {
   Event e("solve");
-  sleep(rand(0.8, 1.2) * 1000.0);
+  sleep(rand(0.6, 1.4) * 8000.0);
 }
 
 void advance() {
@@ -29,7 +29,7 @@ void advance() {
   cout << "Paused pe" << endl;
   pe.pause();
   Event e("advance");
-  sleep(rand(0.8, 1.2) * 20.0);
+  sleep(rand(0.8, 1.2) * 100.0);
   cout << "Started pe" << endl;
   pe.start();
 }
@@ -53,9 +53,9 @@ int main(int argc, char *argv[])
   // sleep(150 * (rank+1));
   // e1.stop();
 
-  // Event e2("Anothertestevent");
-  // sleep(50 * (rank+1));
-  // e2.stop();
+  Event e2("Anothertestevent");
+  sleep(500 * (rank+1));
+  e2.stop();
 
   // Event e3("Paused Event");
   // sleep(10);

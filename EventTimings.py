@@ -10,8 +10,8 @@ from ipdb import set_trace
 
 
 def getDataFrame(file):
-    pd = pandas.read_csv(file, index_col = [0, 1, 2], comment = "#", parse_dates = [0])
-    return pd.sort_index()
+    df = pandas.read_csv(file, index_col = [0, 1, 2], comment = "#", parse_dates = [0])
+    return df.sort_index()
 
 def latestRun(df):
     return df.loc[df.index.max()[0]]

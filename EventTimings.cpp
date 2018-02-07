@@ -238,14 +238,6 @@ void EventRegistry::initialize(std::string appName)
   starttime = Event::Clock::now();
   applicationName = appName;
 
-  // Register MPI datatype
-  int blocklengths[] = {255, 2, 3, 2};
-  MPI_Aint displacements[] = {offsetof(MPI_EventData, name), offsetof(MPI_EventData, rank),
-                              offsetof(MPI_EventData, total), offsetof(MPI_EventData, dataSize)};
-  MPI_Datatype types[] = {MPI_CHAR, MPI_INT, MPI_LONG, MPI_INT};
-  MPI_Type_create_struct(4, blocklengths, displacements, types, &MPI_EVENTDATA);
-  MPI_Type_commit(&MPI_EVENTDATA);
-
   globalEvent.start(true);
   initialized = true;
 }
@@ -260,7 +252,6 @@ void EventRegistry::finalize()
   for (auto & e : storedEvents)
     e.second.stop();
   collect();
-  MPI_Type_free(&MPI_EVENTDATA);
 }
 
 void EventRegistry::clear()
@@ -307,6 +298,15 @@ Event::Clock::duration EventRegistry::getDuration()
 
 void EventRegistry::collect()
 {
+  // Register MPI datatype
+  MPI_Datatype MPI_EVENTDATA;
+  int blocklengths[] = {255, 2, 3, 2};
+  MPI_Aint displacements[] = {offsetof(MPI_EventData, name), offsetof(MPI_EventData, rank),
+                              offsetof(MPI_EventData, total), offsetof(MPI_EventData, dataSize)};
+  MPI_Datatype types[] = {MPI_CHAR, MPI_INT, MPI_LONG, MPI_INT};
+  MPI_Type_create_struct(4, blocklengths, displacements, types, &MPI_EVENTDATA);
+  MPI_Type_commit(&MPI_EVENTDATA);
+ 
   int rank, MPIsize;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &MPIsize);
@@ -376,6 +376,7 @@ void EventRegistry::collect()
     }
   }    
   MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
+  MPI_Type_free(&MPI_EVENTDATA);
 }
 
 void EventRegistry::printAll()

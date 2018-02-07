@@ -5,7 +5,6 @@
 #include <map>
 #include <vector>
 #include <string>
-#include <mpi.h>
 
 /// Represents an event that can be started and stopped.
 /** Additionally to the duration there is a special property that can be set for a event.
@@ -222,9 +221,4 @@ private:
 
   /// A name that is added to the logfile to distinguish different participants
   std::string applicationName;
-
-  MPI_Datatype MPI_EVENTDATA;
 };
-
-
-double toMs(Event::Clock::duration duration);

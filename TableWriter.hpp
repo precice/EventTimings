@@ -27,44 +27,24 @@ public:
   std::ostream* out = &std::cout;
 
   Table() {};
-  
-  explicit Table(std::initializer_list<std::string> headers)
+
+  /// Initialize the Table with a list of table headers
+  explicit Table(std::initializer_list<std::string> headers);
+
+  /// Initialize the Table with a list of pairs of table headers and width
+  explicit Table(std::initializer_list<std::pair<int, std::string>> headers);
+
+  /// Prints the formatted header
+  void printHeader();
+
+  /// Prints a line, accepting arbitrary arguments
+  template<class ... Ts>
+  void printLine(Ts... args)
   {
-    for (auto & h : headers) {
-      cols.emplace_back(h);
-    }    
+    printLine(static_cast<size_t>(0), args...);    
   }
 
-  explicit Table(std::initializer_list<std::pair<int, std::string>> headers)
-  {
-    for (auto & h : headers) {
-      cols.emplace_back(std::get<1>(h), std::get<0>(h));
-    }    
-  }
-
-  void printHeader()
-  {
-    using namespace std;
-
-    for (auto & h : cols) {
-      *out << padding << setw(h.width) << h.name << padding << sepChar;
-    }
-    
-    *out << endl;
-    int headerLength = std::accumulate(cols.begin(), cols.end(), 0, [](int count, Column col){
-        return count + col.width + 3;
-      });
-    std::string sepLine(headerLength, '-');
-    *out << sepLine << endl;
-  }
-
-  template<class T>
-  void printLine(size_t index, T a)
-  {
-    int width = index < cols.size() ? cols[index].width : 0;
-    *out << padding << std::setw(width) << a << padding << sepChar << std::endl;
-  }
-
+  /// Prints a ostream convertible type
   template<class T, class ... Ts>
   void printLine(size_t index, T a, Ts... args)
   {
@@ -73,6 +53,7 @@ public:
     printLine(index+1, args...);    
   }
 
+  /// Prints a duration as milliseconds
   template<class Rep, class Period, class ... Ts>
   void printLine(size_t index, std::chrono::duration<Rep, Period> duration, Ts... args)
   {
@@ -81,11 +62,15 @@ public:
     *out << padding << std::setw(width) << ms << padding << sepChar;
     printLine(index+1, args...);    
   }
-
-  template<class ... Ts>
-  void printLine(Ts... args)
+    
+  /// Recursion anchor, prints the last entry and the endl
+  template<class T>
+  void printLine(size_t index, T a)
   {
-    printLine(static_cast<size_t>(0), args...);    
+    int width = index < cols.size() ? cols[index].width : 0;
+    *out << padding << std::setw(width) << a << padding << sepChar
+         << std::endl;
   }
+
     
 };

@@ -176,9 +176,6 @@ public:
   /// Returns the duration of the run in ms, either currently running, or fixed when run is stopped.
   Event::Clock::duration getDuration();
 
-  /// Gather EventData from all ranks on rank 0.
-  void collect();
-
   /// Prints a verbose report to stdout and a terse one to EventTimings-AppName.log
   void printAll();
 
@@ -200,7 +197,10 @@ private:
   EventRegistry()
     : globalEvent("_GLOBAL", true, false) // Unstarted, it's started in initialize
   {}
-
+  
+  /// Gather EventData from all ranks on rank 0.
+  void collect();
+  
   /// Returns length of longest name
   size_t getMaxNameWidth();
 

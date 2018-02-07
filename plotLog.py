@@ -28,7 +28,7 @@ df = df.loc[df.index.unique()[args.runindex]]
 df.State[df.State == 2] = 0 # We do not care about paused state and treat them as stopped
 df = df[df.Name != "_GLOBAL"]
 if args.filter:
-    df.query(args.filter, inplace = True)
+    df = df.query(args.filter)
 
 height = 1
 padding = 0.2

@@ -422,7 +422,7 @@ void EventRegistry::print(std::ostream &out)
         << "# Rank: " << rank << std::endl << std::endl;
 
     Table table( {
-        {20, "Event"},
+        {getMaxNameWidth(), "Event"},
         {10, "Count"},
         {10, "Total[ms]"},
         {10, "Max[ms]"},
@@ -432,7 +432,7 @@ void EventRegistry::print(std::ostream &out)
       });
     table.printHeader();
       
-    for (auto e : events) {
+    for (auto & e : events) {
       auto & ev = e.second;
       table.printLine(ev.getName(), ev.getCount(), ev.getTotal(), ev.getMax(),
                       ev.getMin(), ev.getAvg(), ev.getTimePercentage());
@@ -528,7 +528,8 @@ std::map<std::string, GlobalEventStats> getGlobalStats(GlobalEvents events)
 
 void EventRegistry::printGlobalStats()
 {
-  Table t({ {20, "Name"}, {10, "Max"}, {10, "MaxOnRank"}, {10, "Min"}, {10, "MinOnRank"}, {10, "Min/Max"} });
+  Table t({ {getMaxNameWidth(), "Name"},
+      {10, "Max"}, {10, "MaxOnRank"}, {10, "Min"}, {10, "MinOnRank"}, {10, "Min/Max"} });
   t.printHeader();
   
   auto stats = getGlobalStats(globalEvents);
@@ -537,4 +538,14 @@ void EventRegistry::printGlobalStats()
     double rel = static_cast<double>(ev.min.count()) / static_cast<double>(ev.max.count());
     t.printLine(e.first, ev.max, ev.maxRank, ev.min, ev.minRank, rel);
   }
+}
+
+size_t EventRegistry::getMaxNameWidth()
+{
+  size_t maxEventWidth = 0;
+  for (auto & ev : events)
+    if (ev.second.getName().size() > maxEventWidth)
+      maxEventWidth = ev.second.getName().size();
+  
+  return maxEventWidth;
 }

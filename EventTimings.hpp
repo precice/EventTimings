@@ -128,7 +128,7 @@ struct GlobalEventStats
   // std::string name;
   int maxRank, minRank;
   Event::Clock::duration max   = Event::Clock::duration::min();
-  Event::Clock::duration min   = Event::Clock::duration::max();  
+  Event::Clock::duration min   = Event::Clock::duration::max();
 };
 
 
@@ -200,6 +200,9 @@ private:
   EventRegistry()
     : globalEvent("_GLOBAL", true, false) // Unstarted, it's started in initialize
   {}
+
+  /// Returns length of longest name
+  size_t getMaxNameWidth();
 
   /// Event for measuring global time, also acts as a barrier
   Event globalEvent;

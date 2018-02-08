@@ -64,7 +64,7 @@ void Event::start(bool barrier)
     MPI_Barrier(MPI_COMM_WORLD);
     
   state = State::STARTED;
-  stateChanges.push_back(std::make_tuple(State::STARTED, EventRegistry::instance().getDuration()));
+  stateChanges.push_back(std::make_tuple(State::STARTED, Clock::now()));
   starttime = Clock::now();
 }
 
@@ -78,7 +78,7 @@ void Event::stop(bool barrier)
       auto stoptime = Clock::now();
       duration += Clock::duration(stoptime - starttime);
     }
-    stateChanges.push_back(std::make_tuple(State::STOPPED, EventRegistry::instance().getDuration()));
+    stateChanges.push_back(std::make_tuple(State::STOPPED, Clock::now()));
     state = State::STOPPED;
     EventRegistry::instance().put(this);
     data.clear();
@@ -93,7 +93,7 @@ void Event::pause(bool barrier)
       MPI_Barrier(MPI_COMM_WORLD);
 
     auto stoptime = Clock::now();
-    stateChanges.push_back(std::make_tuple(State::PAUSED, EventRegistry::instance().getDuration()));
+    stateChanges.push_back(std::make_tuple(State::PAUSED, Clock::now()));
     state = State::PAUSED;
     duration += Clock::duration(stoptime - starttime);
   }
@@ -214,12 +214,13 @@ void EventData::writeCSV(std::ostream &out)
 
 void EventData::writeEventLog(std::ostream &out)
 {
-  std::time_t its = std::chrono::system_clock::to_time_t(EventRegistry::instance().getTimestamp());
+  using namespace std::chrono;
+  std::time_t its = system_clock::to_time_t(EventRegistry::instance().getTimestamp());
   for (auto & sc : stateChanges) {
     out << std::put_time(std::localtime(&its), "%F %T") << ","
         << name << ","
         << rank << ","
-        << std::chrono::duration_cast<std::chrono::milliseconds>(std::get<1>(sc)).count() << ","
+        << duration_cast<milliseconds>(std::get<1>(sc).time_since_epoch()).count() << ","
         << static_cast<int>(std::get<0>(sc)) << std::endl;
   }
 }

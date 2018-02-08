@@ -30,6 +30,8 @@ df = df[df.Name != "_GLOBAL"]
 if args.filter:
     df = df.query(args.filter)
 
+df.Timestamp = df.Timestamp - min(df.Timestamp)
+
 height = 1
 padding = 0.2
 

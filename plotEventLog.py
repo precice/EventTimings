@@ -1,4 +1,6 @@
 #!env python3
+""" Plots Events.log files and shows Events on a timeline for each rank. """
+
 import pandas as pd, numpy as np
 import matplotlib
 import matplotlib.pyplot as plt

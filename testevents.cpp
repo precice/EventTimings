@@ -22,6 +22,7 @@ void sleep(int ms) {
 void solve() {
   Event e("solve");
   sleep(rand(0.6, 1.4) * 8000.0);
+  Event e2("zero time");
 }
 
 void advance() {
@@ -35,23 +36,25 @@ void advance() {
 }
 
 
-int main(int argc, char *argv[])
-{
-  MPI_Init(&argc, &argv);
-  EventRegistry::instance().initialize();
-
+void testevents() {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // Event e1("Testevent");
-  // e1.data.push_back(rank * 5);  e1.data.push_back(rank * 7); e1.data.push_back(rank * 8);
-  
-  // sleep(100 * (rank+1));
-  // e1.stop();
+  // if (rank == 0 or rank == 2) {
+  //   Event e("On rank 0 and 2");
+  //   e.data.push_back(3); e.data.push_back(2); e.data.push_back(1);
+  //   sleep(50);
+  // }
 
-  // e1.start();
-  // sleep(150 * (rank+1));
-  // e1.stop();
+  Event e1("Testevent");
+  e1.data.push_back(rank * 5);  e1.data.push_back(rank * 7); e1.data.push_back(rank * 8);
+  
+  sleep(100 * (rank+1));
+  e1.stop();
+
+  e1.start();
+  sleep(150 * (rank+1));
+  e1.stop();
 
   Event e2("Anothertestevent");
   sleep(500 * (rank+1));
@@ -65,12 +68,20 @@ int main(int argc, char *argv[])
   // sleep(10);
   // e3.stop();
 
-  // Solver loop
-  for (int i = 0; i < 5; ++i) {
-    solve();
-    advance();
-  }
+  // // Solver loop
+  // for (int i = 0; i < 3; ++i) {
+  //   solve();
+  //   advance();
+  // }
+  
+}
 
+int main(int argc, char *argv[])
+{
+  MPI_Init(&argc, &argv);
+  EventRegistry::instance().initialize();
+
+  testevents();
   
   EventRegistry::instance().finalize();
   EventRegistry::instance().printAll();

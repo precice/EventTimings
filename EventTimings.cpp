@@ -6,7 +6,6 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
-#include <cstring>
 #include <ctime>
 #include <vector>
 #include <map>
@@ -31,10 +30,10 @@ void dbgprint(const std::string& format, Args&&... args)
 
 struct MPI_EventData
 {
-  char name[255];
-  int rank, count;
-  long total, max, min;
-  int dataSize, stateChangesSize;
+  char name[255] = {'\0'};
+  int rank, count = 0;
+  long total = 0, max = 0, min = 0;
+  int dataSize = 0, stateChangesSize = 0;
 };
 
 Event::Event(std::string eventName, Clock::duration initialDuration)
@@ -479,38 +478,45 @@ void EventRegistry::collect()
   size_t eventsSize = events.size();
   MPI_Gather(&eventsSize, 1, MPI_INT, eventsPerRank.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  std::vector<MPI_EventData> eventSendBuf;
-  std::vector<std::vector<char>> packSendBuf;
-  
+  std::vector<MPI_EventData> eventSendBuf(events.size());
+  std::vector<std::unique_ptr<char[]>> packSendBuf(events.size());
+  int i = 0;
   for (const auto & ev : events) {
     MPI_EventData eventdata;
     MPI_Request req;
     
-    assert(ev.first.size() < 255);
-    strcpy(eventdata.name, ev.first.c_str());
-    eventdata.rank = rank;
-    eventdata.count = ev.second.getCount();
-    eventdata.total = ev.second.getTotal();
-    eventdata.max = ev.second.getMax();
-    eventdata.min = ev.second.getMin();
-    eventdata.dataSize = ev.second.getData().size();
-    eventdata.stateChangesSize = ev.second.stateChanges.size();
-    eventSendBuf.push_back(eventdata);
-
-    int packSize = sizeof(int) * ev.second.getData().size() +
-      sizeof(Event::StateChanges::value_type) * ev.second.stateChanges.size();
-    packSendBuf.emplace_back(packSize);
+    assert(ev.first.size() <= 255);
+    ev.first.copy(eventSendBuf[i].name, 255);
+    eventSendBuf[i].rank = rank;
+    eventSendBuf[i].count = ev.second.getCount();
+    eventSendBuf[i].total = ev.second.getTotal();
+    eventSendBuf[i].max = ev.second.getMax();
+    eventSendBuf[i].min = ev.second.getMin();
+    eventSendBuf[i].dataSize = ev.second.getData().size();
+    eventSendBuf[i].stateChangesSize = ev.second.stateChanges.size();
+    
+    int packSize = 0, pSize = 0;
+    // int packSize = sizeof(int) * ev.second.getData().size() +
+      // sizeof(Event::StateChanges::value_type) * ev.second.stateChanges.size();
+    MPI_Pack_size(ev.second.getData().size(), MPI_INT, MPI_COMM_WORLD, &pSize);
+    packSize += pSize;
+    MPI_Pack_size(ev.second.stateChanges.size() * sizeof(Event::StateChanges::value_type),
+                  MPI_BYTE, MPI_COMM_WORLD, &pSize);
+    packSize += pSize;
+    
+    packSendBuf[i] = std::unique_ptr<char[]>(new char[packSize]);
     int position = 0;
     MPI_Pack(ev.second.getData().data(), ev.second.getData().size(),
-             MPI_INT, packSendBuf.back().data(), packSize, &position, MPI_COMM_WORLD);
+             MPI_INT, packSendBuf[i].get(), packSize, &position, MPI_COMM_WORLD);
     MPI_Pack(ev.second.stateChanges.data(),
              ev.second.stateChanges.size() * sizeof(Event::StateChanges::value_type),
-             MPI_BYTE, packSendBuf.back().data(), packSize, &position, MPI_COMM_WORLD);
+             MPI_BYTE, packSendBuf[i].get(), packSize, &position, MPI_COMM_WORLD);
 
-    MPI_Isend(&eventSendBuf.back(), 1, MPI_EVENTDATA, 0, 0, MPI_COMM_WORLD, &req);
+    MPI_Isend(&eventSendBuf[i], 1, MPI_EVENTDATA, 0, 0, MPI_COMM_WORLD, &req);
     requests.push_back(req);
-    MPI_Isend(packSendBuf.back().data(), position, MPI_PACKED, 0, 0, MPI_COMM_WORLD, &req);
+    MPI_Isend(packSendBuf[i].get(), position, MPI_PACKED, 0, 0, MPI_COMM_WORLD, &req);
     requests.push_back(req);
+    ++i;
   }
   
   if (rank == 0) {

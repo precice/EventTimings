@@ -16,9 +16,7 @@ include_directories(${MPI_INCLUDE_PATH})
 set(COMPILE_FLAGS  ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
 set(LINK_FLAGS ${LINK_FLAGS} ${MPI_LINK_FLAGS})
 
-add_library(EventTimings EventTimings.cpp)
-# add_library(TableWriter TableWriter.cpp)
-
+add_library(EventTimings EventTimings.cpp TableWriter.cpp)
 
 add_executable(testevents testevents.cpp EventTimings.cpp TableWriter.cpp)
 target_link_libraries(testevents ${MPI_LIBRARIES})

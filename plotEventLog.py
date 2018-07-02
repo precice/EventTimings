@@ -25,13 +25,17 @@ args = parser.parse_args()
 df = pd.read_csv(args.file, index_col = 0, parse_dates = [0])
 df.sort_index()
 
+# Get one dataset (last by default)
 df = df.loc[df.index.unique()[args.runindex]]
 
-df.State[df.State == 2] = 0 # We do not care about paused state and treat them as stopped
+
+ # We do not care about paused state and treat them as stopped
+df.State[df.State == 2] = 0
 df = df[df.Name != "_GLOBAL"]
 if args.filter:
     df = df.query(args.filter)
 
+# Zero timestamps on first event
 df.Timestamp = df.Timestamp - min(df.Timestamp)
 
 height = 1

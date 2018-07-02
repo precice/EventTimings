@@ -190,9 +190,11 @@ void EventData::print(std::ostream &out)
 
 void EventData::writeCSV(std::ostream &out)
 {
-  std::time_t ts = std::chrono::system_clock::to_time_t(EventRegistry::instance().getTimestamp());
-      
-  out << std::put_time(std::localtime(&ts), "%F %T") << ","
+  using namespace std::chrono;
+  std::time_t ts = system_clock::to_time_t(EventRegistry::instance().getTimestamp());
+  auto ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()) % 1000;
+        
+  out << std::put_time(std::localtime(&ts), "%F %T") << ":" << std::setw(3) << ms.count() << ","
       << rank << ","
       << getName() << ","
       << getCount() << ","
@@ -200,6 +202,7 @@ void EventData::writeCSV(std::ostream &out)
       << getMin() << "," << getMax() << "," << getAvg() << ","
       << getTimePercentage();
 
+  /// Write attached data
   bool first = true;
   out << ",\"[";
   for (auto & d : data) {
@@ -214,9 +217,11 @@ void EventData::writeCSV(std::ostream &out)
 void EventData::writeEventLog(std::ostream &out)
 {
   using namespace std::chrono;
-  std::time_t its = system_clock::to_time_t(EventRegistry::instance().getTimestamp());
+  std::time_t ts = system_clock::to_time_t(EventRegistry::instance().getTimestamp());
+  auto ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()) % 1000;
+  
   for (auto & sc : stateChanges) {
-    out << std::put_time(std::localtime(&its), "%F %T") << ","
+    out << std::put_time(std::localtime(&ts), "%F %T") << ":" << std::setw(3) << ms.count() << ","
         << name << ","
         << rank << ","
         << duration_cast<milliseconds>(std::get<1>(sc).time_since_epoch()).count() << ","

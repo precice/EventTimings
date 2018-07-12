@@ -19,7 +19,6 @@ if len(sys.argv) < 2:
     parser.print_help()
     sys.exit(1)
 
-
 args = parser.parse_args()
 
 df = pd.read_csv(args.file, index_col = 0, parse_dates = [0])
@@ -28,15 +27,23 @@ df.sort_index()
 # Get one dataset (last by default)
 df = df.loc[df.index.unique()[args.runindex]]
 
-
- # We do not care about paused state and treat them as stopped
+# We do not care about paused state and treat them as stopped
 df.State[df.State == 2] = 0
-df = df[df.Name != "_GLOBAL"]
-if args.filter:
-    df = df.query(args.filter)
 
 # Zero timestamps on first event
 df.Timestamp = df.Timestamp - min(df.Timestamp)
+
+# Remove the _GLOBAL event,
+df = df[df.Name != "_GLOBAL"]
+
+# Apply filter
+if args.filter:
+    try:
+        df.query(args.filter, inplace = True)
+    except:
+        print("There is something wrong with the filter string you supplied.")
+        sys.exit(-1)
+
 
 height = 1
 padding = 0.2

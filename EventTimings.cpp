@@ -81,6 +81,7 @@ void Event::stop(bool barrier)
     state = State::STOPPED;
     EventRegistry::instance().put(this);
     data.clear();
+    stateChanges.clear();
     duration = Clock::duration::zero();
   }
 }

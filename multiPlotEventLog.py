@@ -1,5 +1,4 @@
 #!env python3
-
 import pandas as pd, numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -31,6 +30,23 @@ def normalize_times(df):
         df.loc[df.File == f, "Timestamp"] -= min(df.Timestamp[df.File == f])
 
 
+def groupby(grouping, names, y_pos):
+    if grouping == "none":
+        return names, y_pos
+    elif grouping == "name":
+        new = {}
+        ys = [-1] # so that ys[-1] always works
+        for name, y in zip(names, y_pos):
+            if name not in new:
+                new[name] = ys[-1] + 1
+            ys.append(new[name])
+                
+        return new.keys(), ys[1:]
+
+    elif grouping == "prefix":
+        raise NotImplementedError
+                
+
 
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -45,6 +61,10 @@ parser.add_argument('--filter', help = "Filter expression used on pandas.query",
                     type = str)
 parser.add_argument('--runindex', help = "Index of run, -1 is latest",
                     type = int, default = -1)
+parser.add_argument('--group', help = "Group Events together on a line",
+                    choices = ["none", "name", "prefix"], default = "name")
+
+
 
 if len(sys.argv) < 2:
     parser.print_help()
@@ -123,7 +143,8 @@ for row in df.itertuples():
         count += 1
 
 
-
+names, y_pos = groupby(args.group, names, y_pos)
+        
 ax = plt.gca()
 ax.barh(y_pos, widths, heights, lefts, color = colors, align = 'center')
 ax.set_yticks(sorted(list(set(y_pos)))) # Make y_pos unique

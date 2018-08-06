@@ -109,7 +109,7 @@ for row in df.itertuples():
         lefts.append(row.Timestamp)
         # Find the corresponding stop event
         eventStop = df[(df.Name == row.Name) & (df.Rank == row.Rank) &
-                       (df.File == row.File) & (df.Timestamp > row.Timestamp) &
+                       (df.File == row.File) & (df.Timestamp >= row.Timestamp) &
                        (df.State == STOPPED)]
         y_pos.append(1 * count)
         heights.append(1)

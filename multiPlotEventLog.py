@@ -40,7 +40,7 @@ parser.add_argument('--file', help = "File names of log file",
 parser.add_argument('--names', help = "Label for each file, must be same length as --file or None",
                     nargs = "+")
 parser.add_argument('--sort', help = "Whitespace separated list of fields, determining sort order",
-                    nargs = 3, default = ["File", "Rank", "Name"])
+                    nargs = "*", default = ["File", "Rank", "Name"])
 parser.add_argument('--filter', help = "Filter expression used on pandas.query",
                     type = str)
 parser.add_argument('--runindex', help = "Index of run, -1 is latest",

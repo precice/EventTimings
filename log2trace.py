@@ -1,4 +1,4 @@
-#!/bin/env python3.6
+#!/bin/env python3
 """
 Assembles a trace file for the chromium tracing tool using multiple log files and prints the result.
 
@@ -37,8 +37,8 @@ def check_and_parse_args():
     """
     Handles the parsing of the command line arguments
     """
-    parser = argparse.ArgumentParser(description="Assembles a trace file for"
-                                     "the chromium tracing tool using multiple"
+    parser = argparse.ArgumentParser(description="Assembles a trace file for "
+                                     "the chromium tracing tool using multiple "
                                      "log files and prints it.")
     parser.add_argument("logs", action=StoreDictKeyPair,
                         nargs="+", metavar="PARTICIPANT=LOGFILE")

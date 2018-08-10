@@ -74,7 +74,7 @@ class EventData
 {
 public:
   // Do not add explicit here, it fails on some (older?) compilers
-  EventData(std::string _name);
+  explicit EventData(std::string _name);
   
   EventData(std::string _name, int _rank, long _count, long _total,
             long _max, long _min, std::vector<int> _data, Event::StateChanges stateChanges);

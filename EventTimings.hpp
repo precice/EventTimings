@@ -192,6 +192,9 @@ public:
   
   void printGlobalStats();
 
+  /// Currently active prefix. Changing that applies to newly created events.
+  std::string prefix;
+
 private:
   /// Private, empty constructor for singleton pattern
   EventRegistry()
@@ -224,4 +227,26 @@ private:
 
   /// A name that is added to the logfile to distinguish different participants
   std::string applicationName;
+};
+
+
+/// Class that changes the prefix in its scope
+class ScopedEventPrefix
+{
+public:
+  
+  ScopedEventPrefix(const std::string & name)
+  {
+    previousName = EventRegistry::instance().prefix;
+    EventRegistry::instance().prefix += name;
+  }
+
+  ~ScopedEventPrefix()
+  {
+    EventRegistry::instance().prefix = previousName;
+  }
+  
+private:
+
+  std::string previousName = "";
 };

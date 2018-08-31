@@ -49,6 +49,14 @@ EventRegistry.instance().getStoredEvent("A stored Event");
 ```
 it needs to be started and stopped explicitly.
 
+### Ataching data to Events
+You can attach data to an Event:
+```
+Event e1("Testevent");
+e1.data.push_back(iterations);
+```
+Currently, only integer data is supported. It can be used to store iterations or residuals. The data is collected for each Event and printed with the timings.
+
 ### Reporting
 After calling `finalize`, a report can be printed to `stdout`
 ```

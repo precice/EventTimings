@@ -54,8 +54,8 @@ After calling `finalize`, a report can be printed to `stdout`
 ```
 EventRegistry::instance().printAll();
 ```
-it also creates or appends to two files `EventTimings-applicationName.log` which contains aggregated timing information and `Events-applicationName.log`, which logs all state changes of Events and is used by auxiliary scripts for plotting or further statistical insights. 
+it also creates or appends to two files `applicationName-eventTimings.log` which contains aggregated timing information and `applicationName-events.log`, which logs all state changes of Events and is used by auxiliary scripts for plotting or further statistical insights. 
 
 ## Reporting Scripts
 ### Display Events on a timeline
-`multiPlotEventLog.py` can display an arbitrary `Events-applicationName.log` file on timeline, so that you see what is going on and can identify dependencies between ranks.
+`multiPlotEventLog.py` can display an arbitrary `applicationName-events.log` file on timeline, so that you see what is going on and can identify dependencies between ranks.

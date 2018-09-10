@@ -152,8 +152,9 @@ public:
   /// Sets the global start time
   /**
    * @param[in] applicationName A name that is added to the logfile to distinguish different participants
+   * @param[in] run A name of the run, will be printed as a separate column with each Event.
    */
-  void initialize(std::string appName = "");
+  void initialize(std::string appName = "", std::string run = "");
 
   /// Sets the global end time
   void finalize();
@@ -194,6 +195,9 @@ public:
 
   /// Currently active prefix. Changing that applies to newly created events.
   std::string prefix;
+  
+  /// A name that is added to the logfile to identify a run
+  std::string runName;
 
 private:
   /// Private, empty constructor for singleton pattern

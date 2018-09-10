@@ -200,6 +200,7 @@ void EventData::writeCSV(std::ostream &out)
   auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
         
   out << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << ms.count() << ","
+      << EventRegistry::instance().runName << ","
       << rank << ","
       << getName() << ","
       << getCount() << ","
@@ -228,6 +229,7 @@ void EventData::writeEventLog(std::ostream &out)
   
   for (auto & sc : stateChanges) {
     out << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << ms.count() << ","
+        << EventRegistry::instance().runName << ","
         << name << ","
         << rank << ","
         << duration_cast<milliseconds>(std::get<1>(sc).time_since_epoch()).count() << ","
@@ -244,13 +246,15 @@ EventRegistry & EventRegistry::instance()
   return instance;
 }
 
-void EventRegistry::initialize(std::string appName)
+void EventRegistry::initialize(std::string appName, std::string run)
 {
-  starttime = Event::Clock::now();
-  applicationName = appName;
-
-  globalEvent.start(true);
-  initialized = true;
+  if (not initialized) {
+    applicationName = appName;
+    runName = run;
+    
+    globalEvent.start(true);
+    initialized = true;
+  }
 }
 
 void EventRegistry::finalize()
@@ -309,7 +313,6 @@ std::chrono::system_clock::time_point EventRegistry::getTimestamp()
 Event::Clock::duration EventRegistry::getDuration()
 {
   return events.at("_GLOBAL").total;
-
 }
 
 void EventRegistry::printAll()
@@ -395,13 +398,15 @@ void EventRegistry::writeCSV(std::string filename)
   std::ofstream outfile;
   outfile.open(filename, std::ios::out | std::ios::app);
   if (not fileExists)
-    outfile << "Timestamp,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << "\n";
+    outfile << "Timestamp,RunName,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << std::endl;
    
   std::time_t ts = std::chrono::system_clock::to_time_t(timestamp);
   std::tm tm = *std::localtime(&ts);
 
   outfile << "# Run finished at: " << std::put_time(&tm, "%F %T") << std::endl
-          << "# Number of processors: " << size << std::endl;
+          << "# Number of processors: " << size << std::endl
+          << "# Timestamp,RunName,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << std::endl;
+         
   
   for (auto e : globalEvents) {
     auto & ev = e.second;
@@ -425,7 +430,7 @@ void EventRegistry::writeEventLogs(std::string filename)
   std::ofstream outfile;
   outfile.open(filename, std::ios::out | std::ios::app);
   if (not fileExists)
-    outfile << "RunTimestamp,Name,Rank,Timestamp,State" << "\n";
+    outfile << "RunTimestamp,RunName,Name,Rank,Timestamp,State" << "\n";
    
   for (auto e : globalEvents) {
     auto & ev = e.second;

@@ -248,13 +248,11 @@ EventRegistry & EventRegistry::instance()
 
 void EventRegistry::initialize(std::string appName, std::string run)
 {
-  if (not initialized) {
-    applicationName = appName;
-    runName = run;
-    
-    globalEvent.start(true);
-    initialized = true;
-  }
+  applicationName = appName;
+  runName = run;
+
+  globalEvent.start(true);
+  initialized = true;
 }
 
 void EventRegistry::finalize()

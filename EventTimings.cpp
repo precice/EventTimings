@@ -119,11 +119,11 @@ EventData::EventData(std::string _name, int _rank, long _count, long _total,
                      long _max, long _min, std::vector<int> _data, Event::StateChanges _stateChanges)
   :  max(std::chrono::milliseconds(_max)),
      min(std::chrono::milliseconds(_min)),
+     total(std::chrono::milliseconds(_total)),
      rank(_rank),
      stateChanges(_stateChanges),
      name(_name),
      count(_count),
-     total(std::chrono::milliseconds(_total)),
      data(_data)
 {}
 
@@ -255,9 +255,7 @@ void EventRegistry::initialize(std::string appName)
 
 void EventRegistry::finalize()
 {
-  // MPI_Barrier(MPI_COMM_WORLD);
   globalEvent.stop(true); // acts as a barrier
-  duration = Event::Clock::now() - starttime;
   timestamp = std::chrono::system_clock::now();
   initialized = false;
   for (auto & e : storedEvents)
@@ -310,10 +308,8 @@ std::chrono::system_clock::time_point EventRegistry::getTimestamp()
 
 Event::Clock::duration EventRegistry::getDuration()
 {
-  if (duration == Event::Clock::duration::zero())
-    return Event::Clock::now() - starttime;
-  else
-      return duration;
+  return events.at("_GLOBAL").total;
+
 }
 
 void EventRegistry::printAll()
@@ -347,14 +343,13 @@ void EventRegistry::print(std::ostream &out)
     using std::left; using std::right;
     
     std::time_t ts = std::chrono::system_clock::to_time_t(timestamp);
-    auto globalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-    
-    // out << "Run finished at " << std::put_time(std::localtime(&currentTime), "%c") << std::endl;
+    auto totalDuration = events.at("_GLOBAL").getTotal();
+
     out << "Run finished at " << std::asctime(std::localtime(&ts));
 
     out << "Global runtime       = "
-        << globalDuration << "ms / "
-        << std::chrono::duration_cast<std::chrono::seconds>(duration).count() << "s" << std::endl
+        << totalDuration << "ms / "
+        << totalDuration / 1000 << "s" << std::endl
         << "Number of processors = " << size << std::endl
         << "# Rank: " << rank << std::endl << std::endl;
 
@@ -403,14 +398,11 @@ void EventRegistry::writeCSV(std::string filename)
     outfile << "Timestamp,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << "\n";
    
   std::time_t ts = std::chrono::system_clock::to_time_t(timestamp);
-  // auto globalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
   std::tm tm = *std::localtime(&ts);
 
   outfile << "# Run finished at: " << std::put_time(&tm, "%F %T") << std::endl
           << "# Number of processors: " << size << std::endl;
   
-  // table.printLine("GLOBAL", 0, 1, globalDuration, globalDuration, globalDuration, globalDuration, 100);
-      
   for (auto e : globalEvents) {
     auto & ev = e.second;
     ev.writeCSV(outfile);

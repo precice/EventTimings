@@ -111,13 +111,14 @@ public:
 
   Event::Clock::duration max = Event::Clock::duration::min();
   Event::Clock::duration min = Event::Clock::duration::max();
+  Event::Clock::duration total = Event::Clock::duration::zero();
+  
   int rank;
   Event::StateChanges stateChanges;
   
 private:
   std::string name;
   long count = 0;
-  Event::Clock::duration total = Event::Clock::duration::zero();
   std::vector<int> data;
 };
 
@@ -210,8 +211,6 @@ private:
   Event globalEvent;
   
   bool initialized = false;
-  Event::Clock::time_point starttime;
-  Event::Clock::duration duration;
   
   /// Timestamp when the run finished
   std::chrono::system_clock::time_point timestamp;

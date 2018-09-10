@@ -73,7 +73,6 @@ private:
 class EventData
 {
 public:
-  // Do not add explicit here, it fails on some (older?) compilers
   explicit EventData(std::string _name);
   
   EventData(std::string _name, int _rank, long _count, long _total,

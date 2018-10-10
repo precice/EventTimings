@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <mpi.h>
 
 /// Represents an event that can be started and stopped.
 /** Additionally to the duration there is a special property that can be set for a event.
@@ -64,7 +65,6 @@ private:
   Clock::duration duration = Clock::duration::zero();
   State state = State::STOPPED;
   bool _barrier = false;
-  
 };
 
 
@@ -153,8 +153,9 @@ public:
   /**
    * @param[in] applicationName A name that is added to the logfile to distinguish different participants
    * @param[in] run A name of the run, will be printed as a separate column with each Event.
+   * @param[in] comm MPI communicator which is used for barriers and collecting information from ranks.
    */
-  void initialize(std::string appName = "", std::string run = "");
+  void initialize(std::string appName = "", std::string run = "", MPI_Comm comm = MPI_COMM_WORLD);
 
   /// Sets the global end time
   void finalize();
@@ -193,7 +194,9 @@ public:
   
   void printGlobalStats();
 
-  /// Currently active prefix. Changing that applies to newly created events.
+  MPI_Comm & getMPIComm();
+
+  /// Currently active prefix. Changing that applies only to newly created events.
   std::string prefix;
   
   /// A name that is added to the logfile to identify a run
@@ -229,6 +232,9 @@ private:
 
   /// A name that is added to the logfile to distinguish different participants
   std::string applicationName;
+
+  /// MPI Communicator
+  MPI_Comm comm;
 };
 
 

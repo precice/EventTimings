@@ -107,7 +107,7 @@ def main():
                     rank = row["Rank"]
                     if rank not in ranks:
                         traces.append(build_thread_name_entry(
-                            "Rank {}".format(rank), pid, rank))
+                            "Rank {:4d}".format(int(rank)), pid, rank))
                         ranks.add(rank)
                     # The current log format contains begin and end timestamps of
                     # events which corresponds to the specified duration events

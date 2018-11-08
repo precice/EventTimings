@@ -37,7 +37,7 @@ struct MPI_EventData
 };
 
 Event::Event(std::string eventName, Clock::duration initialDuration)
-  : name(eventName),
+  : name(EventRegistry::instance().prefix + eventName),
     duration(initialDuration)
 {
   EventRegistry::instance().put(this);
@@ -47,6 +47,9 @@ Event::Event(std::string eventName, bool barrier, bool autostart)
   : name(eventName),
     _barrier(barrier)
 {
+  // Set prefix here: workaround to omit data lock between instance() and Event ctor
+  if (eventName != "_GLOBAL")
+    name = EventRegistry::instance().prefix + eventName;
   if (autostart) {
     start(_barrier);
   }
@@ -60,7 +63,7 @@ Event::~Event()
 void Event::start(bool barrier)
 {
   if (barrier)
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(EventRegistry::instance().getMPIComm());
     
   state = State::STARTED;
   stateChanges.push_back(std::make_tuple(State::STARTED, Clock::now()));
@@ -71,7 +74,7 @@ void Event::stop(bool barrier)
 {
   if (state == State::STARTED or state == State::PAUSED) {
     if (barrier)
-      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Barrier(EventRegistry::instance().getMPIComm());
 
     if (state == State::STARTED) {
       auto stoptime = Clock::now();
@@ -90,7 +93,7 @@ void Event::pause(bool barrier)
 {
   if (state == State::STARTED) {
     if (barrier)
-      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Barrier(EventRegistry::instance().getMPIComm());
 
     auto stoptime = Clock::now();
     stateChanges.push_back(std::make_tuple(State::PAUSED, Clock::now()));
@@ -109,18 +112,18 @@ Event::Clock::duration Event::getDuration()
 EventData::EventData(std::string _name) :
   name(_name)
 {
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_rank(EventRegistry::instance().getMPIComm(), &rank);
 }
 
 EventData::EventData(std::string _name, int _rank, long _count, long _total,
                      long _max, long _min, std::vector<int> _data, Event::StateChanges _stateChanges)
   :  max(std::chrono::milliseconds(_max)),
      min(std::chrono::milliseconds(_min)),
+     total(std::chrono::milliseconds(_total)),
      rank(_rank),
      stateChanges(_stateChanges),
      name(_name),
      count(_count),
-     total(std::chrono::milliseconds(_total)),
      data(_data)
 {}
 
@@ -196,7 +199,8 @@ void EventData::writeCSV(std::ostream &out)
   std::time_t ts = system_clock::to_time_t(now);
   auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
         
-  out << std::put_time(std::localtime(&ts), "%F %T") << "." << std::setw(3) << ms.count() << ","
+  out << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << ms.count() << ","
+      << EventRegistry::instance().runName << ","
       << rank << ","
       << getName() << ","
       << getCount() << ","
@@ -224,7 +228,8 @@ void EventData::writeEventLog(std::ostream &out)
   auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
   
   for (auto & sc : stateChanges) {
-    out << std::put_time(std::localtime(&ts), "%F %T") << "." << std::setw(3) << ms.count() << ","
+    out << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << ms.count() << ","
+        << EventRegistry::instance().runName << ","
         << name << ","
         << rank << ","
         << duration_cast<milliseconds>(std::get<1>(sc).time_since_epoch()).count() << ","
@@ -241,10 +246,11 @@ EventRegistry & EventRegistry::instance()
   return instance;
 }
 
-void EventRegistry::initialize(std::string appName)
+void EventRegistry::initialize(std::string appName, std::string run, MPI_Comm comm)
 {
-  starttime = Event::Clock::now();
   applicationName = appName;
+  runName = run;
+  this->comm = comm;
 
   globalEvent.start(true);
   initialized = true;
@@ -252,9 +258,7 @@ void EventRegistry::initialize(std::string appName)
 
 void EventRegistry::finalize()
 {
-  // MPI_Barrier(MPI_COMM_WORLD);
   globalEvent.stop(true); // acts as a barrier
-  duration = Event::Clock::now() - starttime;
   timestamp = std::chrono::system_clock::now();
   initialized = false;
   for (auto & e : storedEvents)
@@ -277,16 +281,25 @@ void EventRegistry::signal_handler(int signal)
 
 void EventRegistry::put(Event* event)
 {
-  auto data = std::get<0>(events.emplace(event->name, event->name));
+  /// Construct or return EventData object with name as key and name as arg to ctor.
+  auto data = std::get<0>(events.emplace(std::piecewise_construct,
+                                         std::forward_as_tuple(event->name),
+                                         std::forward_as_tuple(event->name)));
   data->second.put(event);
 }
 
-Event & EventRegistry::getStoredEvent(std::string name)
+Event & EventRegistry::getStoredEvent(std::string const & name)
 {
+  // Reset the prefix for creation of a stored event. Using prefixes with stored events is possible
+  // but leads to unexpected results, such as not getting the event you want, because someone else up the
+  // stack set a prefix.
+  auto previousPrefix = prefix;
+  prefix = "";
   auto insertion = storedEvents.emplace(std::piecewise_construct,
                                         std::forward_as_tuple(name),
                                         std::forward_as_tuple(name, false, false));
 
+  prefix = previousPrefix;
   return std::get<0>(insertion)->second;
 }
 
@@ -298,10 +311,7 @@ std::chrono::system_clock::time_point EventRegistry::getTimestamp()
 
 Event::Clock::duration EventRegistry::getDuration()
 {
-  if (duration == Event::Clock::duration::zero())
-    return Event::Clock::now() - starttime;
-  else
-      return duration;
+  return events.at("_GLOBAL").total;
 }
 
 void EventRegistry::printAll()
@@ -314,8 +324,8 @@ void EventRegistry::printAll()
     logFile = "Events.log";
   }
   else {
-    csvFile = "EventTimings-" + applicationName + ".log";
-    logFile = "Events-" + applicationName + ".log";
+    csvFile = applicationName + "-eventTimings.log";
+    logFile = applicationName + "-events.log";
   }
   writeCSV(csvFile);
   writeEventLogs(logFile);
@@ -326,8 +336,8 @@ void EventRegistry::printAll()
 void EventRegistry::print(std::ostream &out)
 {
   int rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &size);
   
   if (rank == 0) {
     using std::endl;
@@ -335,14 +345,13 @@ void EventRegistry::print(std::ostream &out)
     using std::left; using std::right;
     
     std::time_t ts = std::chrono::system_clock::to_time_t(timestamp);
-    auto globalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-    
-    // out << "Run finished at " << std::put_time(std::localtime(&currentTime), "%c") << std::endl;
+    auto totalDuration = events.at("_GLOBAL").getTotal();
+
     out << "Run finished at " << std::asctime(std::localtime(&ts));
 
     out << "Global runtime       = "
-        << globalDuration << "ms / "
-        << std::chrono::duration_cast<std::chrono::seconds>(duration).count() << "s" << std::endl
+        << totalDuration << "ms / "
+        << totalDuration / 1000 << "s" << std::endl
         << "Number of processors = " << size << std::endl
         << "# Rank: " << rank << std::endl << std::endl;
 
@@ -377,8 +386,8 @@ void EventRegistry::print()
 void EventRegistry::writeCSV(std::string filename)
 {
   int rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &size);
   
   if (rank != 0)
     return;
@@ -388,17 +397,16 @@ void EventRegistry::writeCSV(std::string filename)
   std::ofstream outfile;
   outfile.open(filename, std::ios::out | std::ios::app);
   if (not fileExists)
-    outfile << "Timestamp,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << "\n";
+    outfile << "Timestamp,RunName,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << std::endl;
    
   std::time_t ts = std::chrono::system_clock::to_time_t(timestamp);
-  // auto globalDuration = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
   std::tm tm = *std::localtime(&ts);
 
   outfile << "# Run finished at: " << std::put_time(&tm, "%F %T") << std::endl
-          << "# Number of processors: " << size << std::endl;
+          << "# Number of processors: " << size << std::endl
+          << "# Timestamp,RunName,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << std::endl;
+         
   
-  // table.printLine("GLOBAL", 0, 1, globalDuration, globalDuration, globalDuration, globalDuration, 100);
-      
   for (auto e : globalEvents) {
     auto & ev = e.second;
     ev.writeCSV(outfile);
@@ -409,9 +417,8 @@ void EventRegistry::writeCSV(std::string filename)
 
 void EventRegistry::writeEventLogs(std::string filename)
 {
-  int rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  int rank;
+  MPI_Comm_rank(comm, &rank);
   
   if (rank != 0)
     return;
@@ -421,7 +428,7 @@ void EventRegistry::writeEventLogs(std::string filename)
   std::ofstream outfile;
   outfile.open(filename, std::ios::out | std::ios::app);
   if (not fileExists)
-    outfile << "RunTimestamp,Name,Rank,Timestamp,State" << "\n";
+    outfile << "RunTimestamp,RunName,Name,Rank,Timestamp,State" << "\n";
    
   for (auto e : globalEvents) {
     auto & ev = e.second;
@@ -467,6 +474,11 @@ void EventRegistry::printGlobalStats()
   }
 }
 
+MPI_Comm & EventRegistry::getMPIComm()
+{
+  return comm;
+}
+
 
 void EventRegistry::collect()
 {
@@ -480,17 +492,19 @@ void EventRegistry::collect()
   MPI_Type_commit(&MPI_EVENTDATA);
  
   int rank, MPIsize;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &MPIsize);
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &MPIsize);
   
   std::vector<MPI_Request> requests;
   std::vector<int> eventsPerRank(MPIsize);
   size_t eventsSize = events.size();
-  MPI_Gather(&eventsSize, 1, MPI_INT, eventsPerRank.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Gather(&eventsSize, 1, MPI_INT, eventsPerRank.data(), 1, MPI_INT, 0, comm);
 
   std::vector<MPI_EventData> eventSendBuf(events.size());
   std::vector<std::unique_ptr<char[]>> packSendBuf(events.size());
   int i = 0;
+
+  // Send all events from all ranks, including rank 0
   for (const auto & ev : events) {
     MPI_EventData eventdata;
     MPI_Request req;
@@ -508,23 +522,23 @@ void EventRegistry::collect()
     int packSize = 0, pSize = 0;
     // int packSize = sizeof(int) * ev.second.getData().size() +
       // sizeof(Event::StateChanges::value_type) * ev.second.stateChanges.size();
-    MPI_Pack_size(ev.second.getData().size(), MPI_INT, MPI_COMM_WORLD, &pSize);
+    MPI_Pack_size(ev.second.getData().size(), MPI_INT, comm, &pSize);
     packSize += pSize;
     MPI_Pack_size(ev.second.stateChanges.size() * sizeof(Event::StateChanges::value_type),
-                  MPI_BYTE, MPI_COMM_WORLD, &pSize);
+                  MPI_BYTE, comm, &pSize);
     packSize += pSize;
     
     packSendBuf[i] = std::unique_ptr<char[]>(new char[packSize]);
     int position = 0;
     MPI_Pack(ev.second.getData().data(), ev.second.getData().size(),
-             MPI_INT, packSendBuf[i].get(), packSize, &position, MPI_COMM_WORLD);
+             MPI_INT, packSendBuf[i].get(), packSize, &position, comm);
     MPI_Pack(ev.second.stateChanges.data(),
              ev.second.stateChanges.size() * sizeof(Event::StateChanges::value_type),
-             MPI_BYTE, packSendBuf[i].get(), packSize, &position, MPI_COMM_WORLD);
+             MPI_BYTE, packSendBuf[i].get(), packSize, &position, comm);
 
-    MPI_Isend(&eventSendBuf[i], 1, MPI_EVENTDATA, 0, 0, MPI_COMM_WORLD, &req);
+    MPI_Isend(&eventSendBuf[i], 1, MPI_EVENTDATA, 0, 0, comm, &req);
     requests.push_back(req);
-    MPI_Isend(packSendBuf[i].get(), position, MPI_PACKED, 0, 0, MPI_COMM_WORLD, &req);
+    MPI_Isend(packSendBuf[i].get(), position, MPI_PACKED, 0, 0, comm, &req);
     requests.push_back(req);
     ++i;
   }
@@ -533,18 +547,18 @@ void EventRegistry::collect()
     for (int i = 0; i < MPIsize; ++i) {
       for (int j = 0; j < eventsPerRank[i]; ++j) {
         MPI_EventData ev;
-        MPI_Recv(&ev, 1, MPI_EVENTDATA, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&ev, 1, MPI_EVENTDATA, i, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
         std::vector<int> recvData(ev.dataSize);
         Event::StateChanges recvStateChanges(ev.stateChangesSize);
         MPI_Status status;
         int packSize = 0, position = 0;
-        MPI_Probe(i, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        MPI_Probe(i, MPI_ANY_TAG, comm, &status);
         MPI_Get_count(&status, MPI_PACKED, &packSize);
         char packBuffer[packSize];
-        MPI_Recv(packBuffer, packSize, MPI_PACKED, i, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Unpack(packBuffer, packSize, &position, recvData.data(), ev.dataSize, MPI_INT, MPI_COMM_WORLD);
+        MPI_Recv(packBuffer, packSize, MPI_PACKED, i, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
+        MPI_Unpack(packBuffer, packSize, &position, recvData.data(), ev.dataSize, MPI_INT, comm);
         MPI_Unpack(packBuffer, packSize, &position, recvStateChanges.data(),
-                   ev.stateChangesSize * sizeof(Event::StateChanges::value_type), MPI_BYTE, MPI_COMM_WORLD);
+                   ev.stateChangesSize * sizeof(Event::StateChanges::value_type), MPI_BYTE, comm);
           
         globalEvents.emplace(std::piecewise_construct, std::forward_as_tuple(ev.name),
                              std::forward_as_tuple(ev.name, ev.rank, ev.count, ev.total, ev.max, ev.min,

@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include <mpi.h>
 
 /// Represents an event that can be started and stopped.
 /** Additionally to the duration there is a special property that can be set for a event.
@@ -64,7 +65,6 @@ private:
   Clock::duration duration = Clock::duration::zero();
   State state = State::STOPPED;
   bool _barrier = false;
-  
 };
 
 
@@ -73,8 +73,7 @@ private:
 class EventData
 {
 public:
-  // Do not add explicit here, it fails on some (older?) compilers
-  EventData(std::string _name);
+  explicit EventData(std::string _name);
   
   EventData(std::string _name, int _rank, long _count, long _total,
             long _max, long _min, std::vector<int> _data, Event::StateChanges stateChanges);
@@ -112,13 +111,14 @@ public:
 
   Event::Clock::duration max = Event::Clock::duration::min();
   Event::Clock::duration min = Event::Clock::duration::max();
+  Event::Clock::duration total = Event::Clock::duration::zero();
+  
   int rank;
   Event::StateChanges stateChanges;
   
 private:
   std::string name;
   long count = 0;
-  Event::Clock::duration total = Event::Clock::duration::zero();
   std::vector<int> data;
 };
 
@@ -152,8 +152,10 @@ public:
   /// Sets the global start time
   /**
    * @param[in] applicationName A name that is added to the logfile to distinguish different participants
+   * @param[in] run A name of the run, will be printed as a separate column with each Event.
+   * @param[in] comm MPI communicator which is used for barriers and collecting information from ranks.
    */
-  void initialize(std::string appName = "");
+  void initialize(std::string appName = "", std::string run = "", MPI_Comm comm = MPI_COMM_WORLD);
 
   /// Sets the global end time
   void finalize();
@@ -168,7 +170,7 @@ public:
   void put(Event* event);
 
   /// Make this returning a reference or smart ptr?
-  Event & getStoredEvent(std::string name);
+  Event & getStoredEvent(std::string const & name);
 
   /// Returns the timestamp of the run, i.e. when the run finished
   std::chrono::system_clock::time_point getTimestamp();
@@ -192,6 +194,14 @@ public:
   
   void printGlobalStats();
 
+  MPI_Comm & getMPIComm();
+
+  /// Currently active prefix. Changing that applies only to newly created events.
+  std::string prefix;
+  
+  /// A name that is added to the logfile to identify a run
+  std::string runName;
+
 private:
   /// Private, empty constructor for singleton pattern
   EventRegistry()
@@ -208,8 +218,6 @@ private:
   Event globalEvent;
   
   bool initialized = false;
-  Event::Clock::time_point starttime;
-  Event::Clock::duration duration;
   
   /// Timestamp when the run finished
   std::chrono::system_clock::time_point timestamp;
@@ -224,4 +232,29 @@ private:
 
   /// A name that is added to the logfile to distinguish different participants
   std::string applicationName;
+
+  /// MPI Communicator
+  MPI_Comm comm;
+};
+
+
+/// Class that changes the prefix in its scope
+class ScopedEventPrefix
+{
+public:
+  
+  ScopedEventPrefix(const std::string & name)
+  {
+    previousName = EventRegistry::instance().prefix;
+    EventRegistry::instance().prefix += name;
+  }
+
+  ~ScopedEventPrefix()
+  {
+    EventRegistry::instance().prefix = previousName;
+  }
+  
+private:
+
+  std::string previousName = "";
 };

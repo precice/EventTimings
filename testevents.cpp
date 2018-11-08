@@ -68,11 +68,15 @@ void testevents() {
   // sleep(10);
   // e3.stop();
 
-  // // Solver loop
-  // for (int i = 0; i < 3; ++i) {
-  //   solve();
-  //   advance();
-  // }
+  // Solver loop
+  {
+    ScopedEventPrefix sep("pref/");
+    for (int i = 0; i < 3; ++i) {
+      solve();
+      advance();
+    }
+  }
+  Event e3("PostScopeEvent");
   
 }
 
@@ -81,6 +85,7 @@ int main(int argc, char *argv[])
   MPI_Init(&argc, &argv);
   EventRegistry::instance().initialize();
 
+  ScopedEventPrefix sep("root/");
   testevents();
   
   EventRegistry::instance().finalize();

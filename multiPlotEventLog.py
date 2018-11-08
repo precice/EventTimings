@@ -1,4 +1,4 @@
-#!env python3
+#!/usr/bin/env python3
 import pandas as pd, numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -8,20 +8,14 @@ STOPPED = 0
 STARTED = 1
 PAUSED  = 2
 
-def normalize_times2(df):
-    df.reset_index(inplace = True)
-    first_start = df.RunTimestamp.min()
+def create_color_map(keys):
+    """ Create a mapping: inner most key (e.g. Name) -> plot color """
+    mpl_cmap = matplotlib.cm.get_cmap()
+    color_map = {}
+    for i, name in enumerate(keys):
+        color_map[name] = matplotlib.cm.get_cmap()(i / len(keys))
 
-    for fileno in df.File.unique():
-        for rank in df.Rank.unique():
-            events = df[(df.File == fileno) & (df.Rank == rank)]
-            # The time the _GLOBAL event was started on this rank and file
-            start = events[(df.Name == "_GLOBAL") & (df.State ==1)]
-            # start = df[(df.Rank == rank) & (df.File = fileno) &
-                       # (df.Name == "_GLOBAL") & (df.State == 1)]
-            events = (events.Timestamp - int(start.Timestamp)) + (start.RunTimestamp - first_start)
-            import pdb; pdb.set_trace()
-    print(df)
+    return color_map
 
 
 def normalize_times(df):
@@ -31,6 +25,8 @@ def normalize_times(df):
 
 
 def groupby(grouping, names, y_pos):
+    """ Takes two equally sized list of names and y_positions.
+    Events that match according to name or prefix are given the same y_pos. """
     if grouping == "none":
         return names, y_pos
     elif grouping == "name":
@@ -61,7 +57,7 @@ parser.add_argument('--filter', help = "Filter expression used on pandas.query",
                     type = str)
 parser.add_argument('--runindex', help = "Index of run, -1 is latest",
                     type = int, default = -1)
-parser.add_argument('--group', help = "Group Events together on a line",
+parser.add_argument('--group', help = "Group Events together on a line based on a criteria",
                     choices = ["none", "name", "prefix"], default = "name")
 
 
@@ -78,7 +74,7 @@ if args.names:
 else:
     names = args.file
 
-# Read in data
+# Read in data into multiple data frames
 dfs = [pd.read_csv(f, index_col = 0, parse_dates = [0]) for f in args.file]
 # Select run index
 dfs = [df.loc[df.index.unique()[args.runindex]] for df in dfs]
@@ -94,10 +90,22 @@ if args.filter:
         print("There is something wrong with the filter string you supplied.")
         sys.exit(-1)
 
-sort_values = args.sort
+# Remove all indexes
+df.reset_index(inplace = True)
 
-height = 1
-padding = 0.2
+# Normalize times for file individually
+normalize_times(df)
+
+# Color map: inner most key -> color
+color_map = create_color_map(df[args.sort[-1]].unique())
+
+# Remove the _GLOBAL event, this must be done after normalize_events
+df = df[df.Name != "_GLOBAL"]
+
+df.sort_values(args.sort, inplace = True)
+
+
+height = 1    # Height of one event
 
 y_pos = []
 lefts = []
@@ -106,40 +114,23 @@ heights = []
 names = []
 colors = []
 
-# Create a mapping: inner most key (e.g. Name) -> plot color
-mpl_cmap = matplotlib.cm.get_cmap()
-color_map = {}
-for i, name in enumerate(df[sort_values[-1]].unique()):
-    count = df[sort_values[-1]].unique()
-    color_map[name] = matplotlib.cm.get_cmap()(i / len(df[sort_values[-1]].unique()))
-
-# Remove all indexes
-df.reset_index(inplace = True)
-
-normalize_times(df)
-
-# Remove the _GLOBAL event, this must be done after normalize_events
-df = df[df.Name != "_GLOBAL"]
-
-df.sort_values(sort_values, inplace = True)
-
 count = 0
 for row in df.itertuples():
     if row.State == STARTED:
         lefts.append(row.Timestamp)
-        # Find the corresponding stop event
+        # Find the corresponding stop event: same name, rank and file, later timestamp and stopped state
         eventStop = df[(df.Name == row.Name) & (df.Rank == row.Rank) &
                        (df.File == row.File) & (df.Timestamp >= row.Timestamp) &
                        (df.State == STOPPED)]
-        y_pos.append(1 * count)
-        heights.append(1)
+        y_pos.append(height * count)
+        heights.append(height)
 
         if len(eventStop):
             widths.append(eventStop.iloc[0].Timestamp - row.Timestamp)
         else: # zero length event
             widths.append(0)
         names.append("{file} @ Rank {rank}: {name}".format(file = row.File, rank = row.Rank, name = row.Name))
-        colors.append(color_map[getattr(row, sort_values[-1])])
+        colors.append(color_map[getattr(row, args.sort[-1])])
         count += 1
 
 

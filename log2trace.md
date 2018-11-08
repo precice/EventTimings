@@ -20,6 +20,7 @@ log2trace.py -p -b def A=./Events-A.log B=./Events-B.log
 | `-p`, `--pretty` | Outputs the JSON structure in a human-friendly format. |
 | `-d`, `--default`| Overwrites the default category name (`default`) for unknown events. |
 | `-m`, `--mapping`| A JSON file with a mapping from event name to category |
+| `-r`, `--run`    | Only output results of the given run. |
 | `APPLICATION=LOGFILE ...` | Reads a logfile for each application. |
 
 

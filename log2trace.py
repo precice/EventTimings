@@ -49,6 +49,10 @@ def check_and_parse_args():
     parser.add_argument("-m", "--mapping", metavar="FILE",
                         help="The file containing mappings from event-names to categories."
                         )
+    parser.add_argument("-r", "--run", metavar="RUN",
+                        help="Only output results of the given run."
+                        )
+
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
         sys.exit(1)
@@ -99,22 +103,23 @@ def main():
             ranks = set()
             log = csv.DictReader(csvfile, delimiter=",")
             for row in log:
-                rank = row["Rank"]
-                if rank not in ranks:
-                    traces.append(build_thread_name_entry(
-                        "Rank {}".format(rank), pid, rank))
-                    ranks.add(rank)
-                # The current log format contains begin and end timestamps of
-                # events which corresponds to the specified duration events
-                event = {
-                    "name": row["Name"],
-                    "cat": event_mapping.get(row["Name"], args.default),
-                    "tid": rank,
-                    "pid": pid,
-                    "ts": row["Timestamp"],
-                }
-                event["ph"] = "B" if row["State"] == "1" else "E"
-                traces.append(event)
+                if (args.run is None) or (row["RunName"] == args.run):
+                    rank = row["Rank"]
+                    if rank not in ranks:
+                        traces.append(build_thread_name_entry(
+                            "Rank {}".format(rank), pid, rank))
+                        ranks.add(rank)
+                    # The current log format contains begin and end timestamps of
+                    # events which corresponds to the specified duration events
+                    event = {
+                        "name": row["Name"],
+                        "cat": event_mapping.get(row["Name"], args.default),
+                        "tid": rank,
+                        "pid": pid,
+                        "ts": row["Timestamp"],
+                    }
+                    event["ph"] = "B" if row["State"] == "1" else "E"
+                    traces.append(event)
     if args.pretty:
         print(json.dumps(traces, indent=2))
     else:

@@ -22,6 +22,7 @@ log2trace.py -p -b def A=./Events-A.log B=./Events-B.log
 | `-m`, `--mapping`| A JSON file with a mapping from event name to category |
 | `-r`, `--run`    | Only output results of the given run. |
 | `-g`, `--noglobal` | Ignore the global event. |
+| `-k`, `--ranks`  | Only output the given ranks. |
 | `APPLICATION=LOGFILE ...` | Reads a logfile for each application. |
 
 

@@ -67,3 +67,8 @@ it also creates or appends to two files `applicationName-eventTimings.log` which
 ## Reporting Scripts
 ### Display Events on a timeline
 `multiPlotEventLog.py` can display an arbitrary `applicationName-events.log` file on timeline, so that you see what is going on and can identify dependencies between ranks.
+
+### Transform Events to the trace format
+`logs2trace.py` can combine arbitrary `applicationName-events.log` files and output a JSON file in the trace format.
+The chromium trace tool `chrome://tracing` can read and display this format.
+[Read more](logs2trace.md)

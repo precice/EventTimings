@@ -14,7 +14,7 @@ endif()
 message(STATUS "Build configuration: " ${CMAKE_BUILD_TYPE})
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter")
 endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)

@@ -152,10 +152,10 @@ public:
   /// Sets the global start time
   /**
    * @param[in] applicationName A name that is added to the logfile to distinguish different participants
-   * @param[in] run A name of the run, will be printed as a separate column with each Event.
+   * @param[in] runName A name of the run, will be printed as a separate column with each Event.
    * @param[in] comm MPI communicator which is used for barriers and collecting information from ranks.
    */
-  void initialize(std::string appName = "", std::string run = "", MPI_Comm comm = MPI_COMM_WORLD);
+  void initialize(std::string applicationName = "", std::string runName = "", MPI_Comm comm = MPI_COMM_WORLD);
 
   /// Sets the global end time
   void finalize();

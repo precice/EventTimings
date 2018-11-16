@@ -246,10 +246,10 @@ EventRegistry & EventRegistry::instance()
   return instance;
 }
 
-void EventRegistry::initialize(std::string appName, std::string run, MPI_Comm comm)
+void EventRegistry::initialize(std::string applicationName, std::string runName, MPI_Comm comm)
 {
-  applicationName = appName;
-  runName = run;
+  this->applicationName = applicationName;
+  this->runName = runName;
   this->comm = comm;
 
   globalEvent.start(true);

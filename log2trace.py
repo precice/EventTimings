@@ -3,6 +3,8 @@
 Assembles a trace file for the chromium tracing tool using multiple log files and prints the result.
 
 The tool is available through chromium browsers (e.g. Google Chrome) using the url chrome://tracing or by using the standalone.
+
+Format reference: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
 """
 from __future__ import print_function, with_statement
 
@@ -111,7 +113,7 @@ def build_thread_name_entry(name, pid, tid):
             "name": "thread_name",
             "ph": "M",
             "pid": pid,
-            "tid": tid,
+            "tid": int(tid),
             "args": {"name": name}
         }
 
@@ -149,9 +151,9 @@ def main():
                 event = {
                     "name": row["Name"],
                     "cat": event_mapping.get(row["Name"], args.default),
-                    "tid": rank,
-                    "pid": pid,
-                    "ts": row["Timestamp"],
+                    "tid": int(rank),
+                    "pid": int(pid),
+                    "ts": int(row["Timestamp"]),
                 }
                 event["ph"] = "B" if row["State"] == "1" else "E"
                 traces.append(event)

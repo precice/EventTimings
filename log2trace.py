@@ -153,7 +153,7 @@ def main():
                     "cat": event_mapping.get(row["Name"], args.default),
                     "tid": int(rank),
                     "pid": int(pid),
-                    "ts": int(row["Timestamp"]),
+                    "ts": int(row["Timestamp"]) * 1000, # convert from ms to µs
                 }
                 event["ph"] = "B" if row["State"] == "1" else "E"
                 traces.append(event)

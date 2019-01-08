@@ -48,7 +48,7 @@ def check_and_parse_args():
                         help="The file containing mappings from event-names to categories.")
     parser.add_argument("-g", "--noglobal", action="store_true",
                         help="Ignore the global event.")
-    parser.add_argument("-k", "--ranks", type = int, nargs="+", metavar="RANK[, RANK]...",
+    parser.add_argument("-k", "--ranks", type = int, nargs="+", metavar="RANK",
                         help="Only output the given ranks.")
     parser.add_argument('--filter', type = str,
                         help = "Filter expression used on pandas.query")

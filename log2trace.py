@@ -35,29 +35,6 @@ class StoreDictKeyPair(argparse.Action):
         setattr(namespace, self.dest, my_dict)
 
 
-class CommaSeparatedList(argparse.Action):
-    """
-    Helper class used as an action in argparse to store a comma separated list
-    and sets the according namespace attribute
-    """
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        super(CommaSeparatedList, self).__init__(
-            option_strings, dest, **kwargs)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        fragments = values.split(",")
-        ranks = []
-        for fragment in fragments:
-            try:
-                ranks.append(int(fragment))
-            except ValueError:
-                print("Could not convert \"{}\" to integer".format(fragment))
-                raise
-        setattr(namespace, self.dest, ranks)
-
-
 def check_and_parse_args():
     """
     Handles the parsing of the command line arguments
@@ -80,8 +57,7 @@ def check_and_parse_args():
     parser.add_argument("-g", "--noglobal", action="store_true",
                         help="Ignore the global event."
                         )
-    parser.add_argument("-k", "--ranks", action=CommaSeparatedList,
-                        metavar="RANK[,RANK]...",
+    parser.add_argument("-k", "--ranks", type=int, nargs="+", metavar="RANK",
                         help="Only output the given ranks."
                         )
 

@@ -195,9 +195,9 @@ void EventData::print(std::ostream &out)
 void EventData::writeCSV(std::ostream &out)
 {
   using namespace std::chrono;
-  auto now = EventRegistry::instance().getTimestamp();
-  std::time_t ts = system_clock::to_time_t(now);
-  auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+  auto finalize_time = EventRegistry::instance().getTimestamp();
+  std::time_t ts = system_clock::to_time_t(finalize_time);
+  auto ms = duration_cast<milliseconds>(finalize_time.time_since_epoch()) % 1000;
         
   out << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << ms.count() << ","
       << EventRegistry::instance().runName << ","
@@ -223,9 +223,9 @@ void EventData::writeCSV(std::ostream &out)
 void EventData::writeEventLog(std::ostream &out)
 {
   using namespace std::chrono;
-  auto now = EventRegistry::instance().getTimestamp();
-  std::time_t ts = system_clock::to_time_t(now);
-  auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+  auto finalize_time = EventRegistry::instance().getTimestamp();
+  std::time_t ts = system_clock::to_time_t(finalize_time);
+  auto ms = duration_cast<milliseconds>(finalize_time.time_since_epoch()) % 1000;
   
   for (auto & sc : stateChanges) {
     out << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << ms.count() << ","
@@ -508,7 +508,8 @@ void EventRegistry::collect()
   for (const auto & ev : events) {
     MPI_EventData eventdata;
     MPI_Request req;
-    
+
+    // Send aggregated EventData
     assert(ev.first.size() <= 255);
     ev.first.copy(eventSendBuf[i].name, 255);
     eventSendBuf[i].rank = rank;
@@ -530,8 +531,10 @@ void EventRegistry::collect()
     
     packSendBuf[i] = std::unique_ptr<char[]>(new char[packSize]);
     int position = 0;
+    // Pack data attached to an Event
     MPI_Pack(ev.second.getData().data(), ev.second.getData().size(),
              MPI_INT, packSendBuf[i].get(), packSize, &position, comm);
+    // Pack state changes with associated time_points
     MPI_Pack(ev.second.stateChanges.data(),
              ev.second.stateChanges.size() * sizeof(Event::StateChanges::value_type),
              MPI_BYTE, packSendBuf[i].get(), packSize, &position, comm);
@@ -542,7 +545,8 @@ void EventRegistry::collect()
     requests.push_back(req);
     ++i;
   }
-  
+
+  // Receive
   if (rank == 0) {
     for (int i = 0; i < MPIsize; ++i) {
       for (int j = 0; j < eventsPerRank[i]; ++j) {

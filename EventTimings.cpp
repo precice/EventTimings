@@ -178,20 +178,6 @@ const std::vector<int> & EventData::getData() const
   return data;
 }
 
-
-void EventData::print(std::ostream &out)
-{
-  using std::setw;
-  out << setw(30) << std::left << name << std::right
-      << setw(12) << getCount()
-      << setw(12) << getTotal()
-      << setw(12) << getMax()
-      << setw(12) << getMin()
-      << setw(12) << getAvg()
-      << setw(10) << getTimePercentage()
-      << "\n";
-}
-
 void EventData::writeCSV(std::ostream &out)
 {
   using namespace std::chrono;

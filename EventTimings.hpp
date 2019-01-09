@@ -103,10 +103,10 @@ public:
 
   const std::vector<int> & getData() const;
 
-  void print(std::ostream &out);
-
+  /// Write one line of CSV data
   void writeCSV(std::ostream &out);
 
+  /// Writes all state changes (ones per line)
   void writeEventLog(std::ostream &out);
 
   Event::Clock::duration max = Event::Clock::duration::min();

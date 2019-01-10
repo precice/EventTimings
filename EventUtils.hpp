@@ -78,14 +78,18 @@ public:
 
   void addEventData(EventData ed);
 
+  /// Normalizes all Events to zero time of t0
+  void normalizeTo(std::chrono::system_clock::time_point t0);
+
   /// Map of EventName -> EventData, should be private later
   std::map<std::string, EventData> evData;
 
   std::chrono::steady_clock::duration getDuration();
 
+  std::chrono::system_clock::time_point initializedAt;
+
 
 private:
-  std::chrono::system_clock::time_point initializedAt;
   std::chrono::system_clock::time_point finalizedAt;
   std::chrono::steady_clock::time_point initializedAtTicks;
   std::chrono::steady_clock::time_point finalizedAtTicks;
@@ -184,10 +188,15 @@ private:
   {}
 
   RankData localRankData;
+
+  /// Rank -> RankData
   std::map<int, RankData> globalRankData;
 
   /// Gather EventData from all ranks on rank 0.
   void collect();
+
+  /// Normalize times among all ranks
+  void normalize();
 
   /// Returns length of longest name
   size_t getMaxNameWidth();
@@ -204,9 +213,6 @@ private:
   // std::map<std::string, EventData> events;
 
   std::map<std::string, Event> storedEvents;
-
-  /// Multimap of name -> EventData of events for all ranks
-  GlobalEvents globalEvents;
 
   /// A name that is added to the logfile to distinguish different participants
   std::string applicationName;

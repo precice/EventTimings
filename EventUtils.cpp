@@ -183,6 +183,19 @@ void RankData::addEventData(EventData ed)
   evData.emplace(ed.getName(), std::move(ed));
 }
 
+void RankData::normalizeTo(std::chrono::system_clock::time_point t0)
+{
+  auto delta = initializedAt - t0; // duration that this rank initialized after the first rank
+
+  for (auto & events : evData) {
+    for (auto & sc : events.second.stateChanges) {
+      auto & tp = std::get<1>(sc);
+      tp = tp - initializedAtTicks.time_since_epoch() + delta;
+      assert(tp.time_since_epoch().count() > 0); // Trying to do normalize twice?
+    }
+  }
+}
+
 std::chrono::steady_clock::duration RankData::getDuration()
 {
   if (isFinalized)
@@ -210,7 +223,7 @@ void EventRegistry::initialize(std::string applicationName, std::string runName,
 
   localRankData.initialize();
 
-  globalEvent.start(true);
+  globalEvent.start(false);
   initialized = true;
 }
 
@@ -223,6 +236,8 @@ void EventRegistry::finalize()
   initialized = false;
   for (auto & e : storedEvents)
     e.second.stop();
+  normalize();
+  normalize();
   collect();
 }
 
@@ -363,9 +378,10 @@ void EventRegistry::writeCSV(std::string filename)
           << "# Timestamp,RunName,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << std::endl;
 
 
-  for (auto e : globalEvents) {
+  for (auto e : globalRankData) {
     auto & ev = e.second;
-    ev.writeCSV(outfile);
+    for (auto evData : ev.evData)
+      evData.second.writeCSV(outfile);
   }
 
   outfile.close();
@@ -386,28 +402,31 @@ void EventRegistry::writeEventLogs(std::string filename)
   if (not fileExists)
     outfile << "RunTimestamp,RunName,Name,Rank,Timestamp,State" << "\n";
 
-  for (auto e : globalEvents) {
+  for (auto e : globalRankData) {
     auto & ev = e.second;
-    ev.writeEventLog(outfile);
+    for (auto evData : ev.evData)
+      evData.second.writeEventLog(outfile);
   }
 
   outfile.close();
 }
 
 
-std::map<std::string, GlobalEventStats> getGlobalStats(GlobalEvents events)
+std::map<std::string, GlobalEventStats> getGlobalStats(std::map<int, RankData> events)
 {
   std::map<std::string, GlobalEventStats> globalStats;
   for (auto & e : events) {
-    auto ev = e.second;
-    GlobalEventStats & stats = globalStats[e.first];
-    if (ev.max > stats.max) {
-      stats.max = ev.max;
-      stats.maxRank = ev.rank;
-    }
-    if (ev.min < stats.min) {
-      stats.min = ev.min;
-      stats.minRank = ev.rank;
+    for (auto & evData : e.second.evData) {
+      auto event = evData.second;
+      GlobalEventStats & stats = globalStats[evData.first];
+      if (event.max > stats.max) {
+        stats.max = event.max;
+        stats.maxRank = event.rank;
+      }
+      if (event.min < stats.min) {
+        stats.min = event.min;
+        stats.minRank = event.rank;
+      }
     }
   }
   return globalStats;
@@ -419,7 +438,7 @@ void EventRegistry::printGlobalStats()
       {10, "Max"}, {10, "MaxOnRank"}, {10, "Min"}, {10, "MinOnRank"}, {10, "Min/Max"} });
   t.printHeader();
 
-  auto stats = getGlobalStats(globalEvents);
+  auto stats = getGlobalStats(globalRankData);
   for (auto & e : stats) {
     auto & ev = e.second;
     double rel = 0;
@@ -459,14 +478,17 @@ void EventRegistry::collect()
   std::vector<std::unique_ptr<char[]>> packSendBuf(eventsSize);
   int i = 0;
 
+  // Send the times from the local RankData
+  // auto integral_duration = localRankData.time_since_epoch().count();
+
   // Send all events from all ranks, including rank 0
-  for (const auto & ev : localRankData.evData) {
+  for (auto const & ev : localRankData.evData) {
     MPI_EventData eventdata;
     MPI_Request req;
 
     // Send aggregated EventData
-    assert(ev.first.size() <= 255);
-    ev.first.copy(eventSendBuf[i].name, 255);
+    assert(ev.first.size() <= sizeof(eventdata.name));
+    ev.first.copy(eventSendBuf[i].name, sizeof(eventdata.name));
     eventSendBuf[i].rank = rank;
     eventSendBuf[i].count = ev.second.getCount();
     eventSendBuf[i].total = ev.second.getTotal();
@@ -476,8 +498,6 @@ void EventRegistry::collect()
     eventSendBuf[i].stateChangesSize = ev.second.stateChanges.size();
 
     int packSize = 0, pSize = 0;
-    // int packSize = sizeof(int) * ev.second.getData().size() +
-      // sizeof(Event::StateChanges::value_type) * ev.second.stateChanges.size();
     MPI_Pack_size(ev.second.getData().size(), MPI_INT, comm, &pSize);
     packSize += pSize;
     MPI_Pack_size(ev.second.stateChanges.size() * sizeof(Event::StateChanges::value_type),
@@ -519,18 +539,26 @@ void EventRegistry::collect()
         MPI_Unpack(packBuffer, packSize, &position, recvStateChanges.data(),
                    ev.stateChangesSize * sizeof(Event::StateChanges::value_type), MPI_BYTE, comm);
 
-        globalEvents.emplace(std::piecewise_construct, std::forward_as_tuple(ev.name),
-                             std::forward_as_tuple(ev.name, ev.rank, ev.count, ev.total, ev.max, ev.min,
-                                                   recvData, recvStateChanges));
-
         EventData ed(ev.name, ev.rank, ev.count, ev.total, ev.max, ev.min, recvData, recvStateChanges);
-        globalRankData[ev.rank].addEventData(std::move(ed));
+        globalRankData[i].addEventData(std::move(ed));
 
       }
     }
   }
   MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
   MPI_Type_free(&MPI_EVENTDATA);
+}
+
+
+void EventRegistry::normalize()
+{
+  long ticks = localRankData.initializedAt.time_since_epoch().count();
+  long minTicks;
+  MPI_Allreduce(&ticks, &minTicks, 1, MPI_LONG, MPI_MIN, EventRegistry::instance().getMPIComm());
+
+  // This assumes the same epoch and ticks rep, should be true for system time
+  std::chrono::system_clock::time_point t0{std::chrono::system_clock::duration{minTicks}};
+  localRankData.normalizeTo(t0);
 }
 
 
@@ -543,3 +571,4 @@ size_t EventRegistry::getMaxNameWidth()
 
   return maxEventWidth;
 }
+

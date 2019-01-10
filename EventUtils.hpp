@@ -190,8 +190,8 @@ private:
 
   RankData localRankData;
 
-  /// Rank -> RankData
-  std::map<int, RankData> globalRankData;
+  /// Holds RankData from all ranks, only populated at rank 0
+  std::vector<RankData> globalRankData;
 
   /// Gather EventData from all ranks on rank 0.
   void collect();

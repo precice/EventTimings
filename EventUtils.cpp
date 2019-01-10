@@ -306,6 +306,12 @@ Event::Clock::duration EventRegistry::getDuration()
 
 void EventRegistry::printAll()
 {
+  int myRank;
+  MPI_Comm_rank(comm, &myRank);
+
+  if (myRank != 0)
+    return;
+
   print();
 
   std::string csvFile, logFile, jsonEvents;
@@ -401,8 +407,7 @@ void EventRegistry::writeCSV(std::string filename)
 
 
   for (auto e : globalRankData) {
-    auto & ev = e.second;
-    for (auto evData : ev.evData)
+    for (auto evData : e.evData)
       evData.second.writeCSV(outfile);
   }
 
@@ -425,8 +430,7 @@ void EventRegistry::writeEventLogs(std::string filename)
     outfile << "RunTimestamp,RunName,Name,Rank,Timestamp,State" << "\n";
 
   for (auto e : globalRankData) {
-    auto & ev = e.second;
-    for (auto evData : ev.evData)
+    for (auto evData : e.evData)
       evData.second.writeEventLog(outfile);
   }
 
@@ -434,11 +438,11 @@ void EventRegistry::writeEventLogs(std::string filename)
 }
 
 
-std::map<std::string, GlobalEventStats> getGlobalStats(std::map<int, RankData> events)
+std::map<std::string, GlobalEventStats> getGlobalStats(std::vector<RankData> events)
 {
   std::map<std::string, GlobalEventStats> globalStats;
   for (auto & e : events) {
-    for (auto & evData : e.second.evData) {
+    for (auto & evData : e.evData) {
       auto event = evData.second;
       GlobalEventStats & stats = globalStats[evData.first];
       if (event.max > stats.max) {
@@ -457,6 +461,7 @@ std::map<std::string, GlobalEventStats> getGlobalStats(std::map<int, RankData> e
 void EventRegistry::writeEvents(std::string filename)
 {
   using json = nlohmann::json;
+
   json js;
 
   sys_clk::time_point initT, finalT;
@@ -467,7 +472,7 @@ void EventRegistry::writeEvents(std::string filename)
 
   for (auto const & rank : globalRankData) {
     auto jEvents = json::array();
-    for (auto const & events : rank.second.evData) {
+    for (auto const & events : rank.evData) {
       for (auto const & sc : events.second.stateChanges) {
         jEvents.push_back({
             {"Name", events.second.getName()},
@@ -477,14 +482,14 @@ void EventRegistry::writeEvents(std::string filename)
       }
     }
     js["Ranks"].push_back({
-        {"Finalized", timepoint_to_timestring(rank.second.finalizedAt)},
-        {"Initialized", timepoint_to_timestring(rank.second.initializedAt)},
+        {"Finalized", timepoint_to_timestring(rank.finalizedAt)},
+        {"Initialized", timepoint_to_timestring(rank.initializedAt)},
         {"Events", jEvents}        
       });
   }
   
   std::ofstream ofs(filename);
-  ofs << std::setw(2) << js;
+  ofs << std::setw(2) << js << std::endl;
 }
 
 void EventRegistry::printGlobalStats()
@@ -583,11 +588,12 @@ void EventRegistry::collect()
   // Receive
   if (rank == 0) {
     for (int i = 0; i < MPIsize; ++i) {
+      RankData data;
       // Receive initialized and finalized times
       std::array<long, 2> recvTimes;
       MPI_Recv(&recvTimes, 2, MPI_LONG, i, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
-      globalRankData[i].initializedAt = sys_clk::time_point(sys_clk::duration(recvTimes[0]));
-      globalRankData[i].finalizedAt = sys_clk::time_point(sys_clk::duration(recvTimes[1]));
+      data.initializedAt = sys_clk::time_point(sys_clk::duration(recvTimes[0]));
+      data.finalizedAt = sys_clk::time_point(sys_clk::duration(recvTimes[1]));
 
       // Receive all state changes
       for (int j = 0; j < eventsPerRank[i]; ++j) {
@@ -606,9 +612,9 @@ void EventRegistry::collect()
                    ev.stateChangesSize * sizeof(Event::StateChanges::value_type), MPI_BYTE, comm);
 
         EventData ed(ev.name, ev.rank, ev.count, ev.total, ev.max, ev.min, recvData, recvStateChanges);
-        globalRankData[i].addEventData(std::move(ed));
-
+        data.addEventData(std::move(ed));
       }
+      globalRankData.push_back(data);      
     }
   }
   MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
@@ -663,11 +669,11 @@ std::pair<sys_clk::time_point, sys_clk::time_point> EventRegistry::findFirstAndL
   using T = decltype(globalRankData)::value_type const &;
   auto first = std::min_element(std::begin(globalRankData), std::end(globalRankData),
                                 [] (T a, T b)
-                                { return a.second.initializedAt < b.second.initializedAt; });
+                                { return a.initializedAt < b.initializedAt; });
   auto last = std::max_element(std::begin(globalRankData), std::end(globalRankData),
                                 [] (T a, T b)
-                                { return a.second.finalizedAt < b.second.finalizedAt; });
+                                { return a.finalizedAt < b.finalizedAt; });
 
-  return std::make_pair(first->second.initializedAt, last->second.finalizedAt);
+  return std::make_pair(first->initializedAt, last->finalizedAt);
  
 }

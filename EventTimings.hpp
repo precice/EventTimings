@@ -14,7 +14,7 @@ like MPI calls in an event. It is intended to be set by the user. */
 class Event
 {
 public:
-  
+
   enum class State {
     STOPPED = 0,
     STARTED = 1,
@@ -25,10 +25,10 @@ public:
   using Clock = std::chrono::steady_clock;
 
   using StateChanges = std::vector<std::tuple<State, Clock::time_point>>;
-    
+
   /// An Event can't be copied.
   Event(const Event & other) = delete;
-  
+
   /// Name used to identify the timer. Events of the same name are accumulated to
   std::string name;
 
@@ -59,7 +59,7 @@ public:
   StateChanges stateChanges;
 
 private:
-  
+
   Clock::time_point starttime;
   // Clock::time_point stoptime;
   Clock::duration duration = Clock::duration::zero();
@@ -74,10 +74,10 @@ class EventData
 {
 public:
   explicit EventData(std::string _name);
-  
+
   EventData(std::string _name, int _rank, long _count, long _total,
             long _max, long _min, std::vector<int> _data, Event::StateChanges stateChanges);
-  
+
   /// Adds an Events data.
   void put(Event* event);
 
@@ -112,14 +112,48 @@ public:
   Event::Clock::duration max = Event::Clock::duration::min();
   Event::Clock::duration min = Event::Clock::duration::max();
   Event::Clock::duration total = Event::Clock::duration::zero();
-  
+
   int rank;
   Event::StateChanges stateChanges;
-  
+
 private:
   std::string name;
   long count = 0;
   std::vector<int> data;
+};
+
+/// All EventData of one particular rank
+class RankData
+{
+public:
+  RankData();
+
+  /// Records the initialized timestamp
+  void initialize();
+
+  /// Records the finalized timestamp
+  void finalize();
+
+  /// Adds a new event
+  void put(Event* event);
+
+  void addEventData(EventData ed);
+
+  /// Map of EventName -> EventData, should be private later
+  std::map<std::string, EventData> evData;
+
+  std::chrono::steady_clock::duration getDuration();
+
+
+private:
+  std::chrono::system_clock::time_point initializedAt;
+  std::chrono::system_clock::time_point finalizedAt;
+  std::chrono::steady_clock::time_point initializedAtTicks;
+  std::chrono::steady_clock::time_point finalizedAtTicks;
+
+  bool isFinalized = false;
+  int rank = 0;
+
 };
 
 /// Holds data aggregated from all MPI ranks for one event
@@ -143,12 +177,12 @@ class EventRegistry
 public:
   /// Deleted copy operator for singleton pattern
   EventRegistry(EventRegistry const &) = delete;
-  
+
   /// Deleted assigment operator for singleton pattern
   void operator=(EventRegistry const &) = delete;
 
   static EventRegistry & instance();
-  
+
   /// Sets the global start time
   /**
    * @param[in] applicationName A name that is added to the logfile to distinguish different participants
@@ -174,7 +208,7 @@ public:
 
   /// Returns the timestamp of the run, i.e. when the run finished
   std::chrono::system_clock::time_point getTimestamp();
-  
+
   /// Returns the duration of the run in ms, either currently running, or fixed when run is stopped.
   Event::Clock::duration getDuration();
 
@@ -191,14 +225,16 @@ public:
   void writeCSV(std::string filename);
 
   void writeEventLogs(std::string filename);
-  
+
+  void writeJSONEventLog(std::string filename);
+
   void printGlobalStats();
 
   MPI_Comm & getMPIComm();
 
   /// Currently active prefix. Changing that applies only to newly created events.
   std::string prefix;
-  
+
   /// A name that is added to the logfile to identify a run
   std::string runName;
 
@@ -207,23 +243,26 @@ private:
   EventRegistry()
     : globalEvent("_GLOBAL", true, false) // Unstarted, it's started in initialize
   {}
-  
+
+  RankData localRankData;
+  std::map<int, RankData> globalRankData;
+
   /// Gather EventData from all ranks on rank 0.
   void collect();
-  
+
   /// Returns length of longest name
   size_t getMaxNameWidth();
 
   /// Event for measuring global time, also acts as a barrier
   Event globalEvent;
-  
+
   bool initialized = false;
-  
+
   /// Timestamp when the run finished
   std::chrono::system_clock::time_point timestamp;
 
   /// Map of name -> events for this rank only
-  std::map<std::string, EventData> events;
+  // std::map<std::string, EventData> events;
 
   std::map<std::string, Event> storedEvents;
 
@@ -242,7 +281,7 @@ private:
 class ScopedEventPrefix
 {
 public:
-  
+
   ScopedEventPrefix(const std::string & name)
   {
     previousName = EventRegistry::instance().prefix;
@@ -253,7 +292,7 @@ public:
   {
     EventRegistry::instance().prefix = previousName;
   }
-  
+
 private:
 
   std::string previousName = "";

@@ -1,4 +1,5 @@
 #include "EventUtils.hpp"
+#include "json.hpp"
 
 #include <cassert>
 #include <algorithm>
@@ -6,6 +7,7 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <ctime>
 #include <utility>
 #include "prettyprint.hpp"
@@ -13,6 +15,9 @@
 
 using std::cout;
 using std::endl;
+
+using sys_clk = std::chrono::system_clock;
+using stdy_clk = std::chrono::steady_clock;
 
 template<class... Args>
 void dbgprint(const std::string& format, Args&&... args)
@@ -22,6 +27,19 @@ void dbgprint(const std::string& format, Args&&... args)
   std::string with_rank = "[" + std::to_string(rank) + "] " + format + "\n";
   printf(with_rank.c_str(), std::forward<Args>(args)...);
 }
+
+
+std::string timepoint_to_timestring(sys_clk::time_point c)
+{
+  using namespace std::chrono;
+  std::time_t ts = sys_clk::to_time_t(c);
+  auto ms = duration_cast<milliseconds>(c.time_since_epoch()) % 1000;
+
+  std::stringstream ss;
+  ss << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << ms.count();
+  return ss.str();    
+}
+
 
 struct MPI_EventData
 {
@@ -158,14 +176,14 @@ RankData::RankData()
 
 void RankData::initialize()
 {
-  initializedAt = std::chrono::system_clock::now();
-  initializedAtTicks = std::chrono::steady_clock::now();
+  initializedAt = sys_clk::now();
+  initializedAtTicks = stdy_clk::now();
 }
 
 void RankData::finalize()
 {
-  finalizedAt = std::chrono::system_clock::now();
-  finalizedAtTicks = std::chrono::steady_clock::now();
+  finalizedAt = sys_clk::now();
+  finalizedAtTicks = stdy_clk::now();
 }
 
 void RankData::put(Event* event)
@@ -183,7 +201,7 @@ void RankData::addEventData(EventData ed)
   evData.emplace(ed.getName(), std::move(ed));
 }
 
-void RankData::normalizeTo(std::chrono::system_clock::time_point t0)
+void RankData::normalizeTo(sys_clk::time_point t0)
 {
   auto delta = initializedAt - t0; // duration that this rank initialized after the first rank
 
@@ -196,12 +214,12 @@ void RankData::normalizeTo(std::chrono::system_clock::time_point t0)
   }
 }
 
-std::chrono::steady_clock::duration RankData::getDuration()
+stdy_clk::duration RankData::getDuration()
 {
   if (isFinalized)
     return finalizedAtTicks - initializedAtTicks;
   else
-    return std::chrono::steady_clock::now() - initializedAtTicks;
+    return stdy_clk::now() - initializedAtTicks;
 }
 
 
@@ -232,11 +250,11 @@ void EventRegistry::finalize()
   globalEvent.stop(true); // acts as a barrier
   localRankData.finalize();
 
-  timestamp = std::chrono::system_clock::now();
+  timestamp = sys_clk::now();
   initialized = false;
   for (auto & e : storedEvents)
     e.second.stop();
-  normalize();
+
   normalize();
   collect();
 }
@@ -275,7 +293,7 @@ Event & EventRegistry::getStoredEvent(std::string const & name)
 }
 
 
-std::chrono::system_clock::time_point EventRegistry::getTimestamp()
+sys_clk::time_point EventRegistry::getTimestamp()
 {
   return timestamp;
 }
@@ -290,17 +308,21 @@ void EventRegistry::printAll()
 {
   print();
 
-  std::string csvFile, logFile;
+  std::string csvFile, logFile, jsonEvents;
   if (applicationName.empty()) {
     csvFile = "EventTimings.log";
     logFile = "Events.log";
+    jsonEvents = "Events.json";
   }
   else {
     csvFile = applicationName + "-eventTimings.log";
     logFile = applicationName + "-events.log";
+    jsonEvents = applicationName + "-events.json";
+    
   }
   writeCSV(csvFile);
   writeEventLogs(logFile);
+  writeEvents(jsonEvents);
 }
 
 
@@ -315,7 +337,7 @@ void EventRegistry::print(std::ostream &out)
     using std::setw; using std::setprecision;
     using std::left; using std::right;
 
-    std::time_t ts = std::chrono::system_clock::to_time_t(timestamp);
+    std::time_t ts = sys_clk::to_time_t(timestamp);
     auto totalDuration = localRankData.evData.at("_GLOBAL").getTotal();
 
     out << "Run finished at " << std::asctime(std::localtime(&ts));
@@ -370,7 +392,7 @@ void EventRegistry::writeCSV(std::string filename)
   if (not fileExists)
     outfile << "Timestamp,RunName,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << std::endl;
 
-  std::time_t ts = std::chrono::system_clock::to_time_t(timestamp);
+  std::time_t ts = sys_clk::to_time_t(timestamp);
   std::tm tm = *std::localtime(&ts);
 
   outfile << "# Run finished at: " << std::put_time(&tm, "%F %T") << std::endl
@@ -432,6 +454,39 @@ std::map<std::string, GlobalEventStats> getGlobalStats(std::map<int, RankData> e
   return globalStats;
 }
 
+void EventRegistry::writeEvents(std::string filename)
+{
+  using json = nlohmann::json;
+  json js;
+
+  sys_clk::time_point initT, finalT;
+  std::tie(initT, finalT) = findFirstAndLastTime();
+  js["Name"] = runName;
+  js["Initialized"] = timepoint_to_timestring(initT);
+  js["Finalized"] = timepoint_to_timestring(finalT);
+
+  for (auto const & rank : globalRankData) {
+    auto jEvents = json::array();
+    for (auto const & events : rank.second.evData) {
+      for (auto const & sc : events.second.stateChanges) {
+        jEvents.push_back({
+            {"Name", events.second.getName()},
+            {"State", std::get<0>(sc)},
+            {"Timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(std::get<1>(sc).time_since_epoch()).count()}
+          }); 
+      }
+    }
+    js["Ranks"].push_back({
+        {"Finalized", timepoint_to_timestring(rank.second.finalizedAt)},
+        {"Initialized", timepoint_to_timestring(rank.second.initializedAt)},
+        {"Events", jEvents}        
+      });
+  }
+  
+  std::ofstream ofs(filename);
+  ofs << std::setw(2) << js;
+}
+
 void EventRegistry::printGlobalStats()
 {
   Table t({ {getMaxNameWidth(), "Name"},
@@ -478,13 +533,17 @@ void EventRegistry::collect()
   std::vector<std::unique_ptr<char[]>> packSendBuf(eventsSize);
   int i = 0;
 
+  MPI_Request req;
+  
   // Send the times from the local RankData
-  // auto integral_duration = localRankData.time_since_epoch().count();
+  std::array<long, 2> times= {localRankData.initializedAt.time_since_epoch().count(),
+                              localRankData.finalizedAt.time_since_epoch().count()};
+  MPI_Isend(&times, times.size(), MPI_LONG, 0, 0, comm, &req);
+  requests.push_back(req);  
 
   // Send all events from all ranks, including rank 0
   for (auto const & ev : localRankData.evData) {
     MPI_EventData eventdata;
-    MPI_Request req;
 
     // Send aggregated EventData
     assert(ev.first.size() <= sizeof(eventdata.name));
@@ -524,6 +583,13 @@ void EventRegistry::collect()
   // Receive
   if (rank == 0) {
     for (int i = 0; i < MPIsize; ++i) {
+      // Receive initialized and finalized times
+      std::array<long, 2> recvTimes;
+      MPI_Recv(&recvTimes, 2, MPI_LONG, i, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
+      globalRankData[i].initializedAt = sys_clk::time_point(sys_clk::duration(recvTimes[0]));
+      globalRankData[i].finalizedAt = sys_clk::time_point(sys_clk::duration(recvTimes[1]));
+
+      // Receive all state changes
       for (int j = 0; j < eventsPerRank[i]; ++j) {
         MPI_EventData ev;
         MPI_Recv(&ev, 1, MPI_EVENTDATA, i, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
@@ -557,10 +623,30 @@ void EventRegistry::normalize()
   MPI_Allreduce(&ticks, &minTicks, 1, MPI_LONG, MPI_MIN, EventRegistry::instance().getMPIComm());
 
   // This assumes the same epoch and ticks rep, should be true for system time
-  std::chrono::system_clock::time_point t0{std::chrono::system_clock::duration{minTicks}};
+  sys_clk::time_point t0{sys_clk::duration{minTicks}};
   localRankData.normalizeTo(t0);
 }
 
+std::pair<sys_clk::time_point, sys_clk::time_point>
+EventRegistry::collectInitAndFinalize()
+{
+  long ticks = localRankData.initializedAt.time_since_epoch().count();
+  long minTicks;
+  MPI_Reduce(&ticks, &minTicks, 1, MPI_LONG, MPI_MIN, 0, EventRegistry::instance().getMPIComm());
+
+  ticks = localRankData.initializedAt.time_since_epoch().count();
+  long maxTicks;
+  MPI_Reduce(&ticks, &maxTicks, 1, MPI_LONG, MPI_MAX, 0, EventRegistry::instance().getMPIComm());
+
+  // This assumes the same epoch and ticks rep, should be true for system time
+
+  return std::make_pair(
+    sys_clk::time_point{sys_clk::duration{minTicks}},
+    sys_clk::time_point{sys_clk::duration{maxTicks}}
+    );
+      
+
+}
 
 size_t EventRegistry::getMaxNameWidth()
 {
@@ -572,3 +658,16 @@ size_t EventRegistry::getMaxNameWidth()
   return maxEventWidth;
 }
 
+std::pair<sys_clk::time_point, sys_clk::time_point> EventRegistry::findFirstAndLastTime()
+{
+  using T = decltype(globalRankData)::value_type const &;
+  auto first = std::min_element(std::begin(globalRankData), std::end(globalRankData),
+                                [] (T a, T b)
+                                { return a.second.initializedAt < b.second.initializedAt; });
+  auto last = std::max_element(std::begin(globalRankData), std::end(globalRankData),
+                                [] (T a, T b)
+                                { return a.second.finalizedAt < b.second.finalizedAt; });
+
+  return std::make_pair(first->second.initializedAt, last->second.finalizedAt);
+ 
+}

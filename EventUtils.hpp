@@ -87,10 +87,9 @@ public:
   std::chrono::steady_clock::duration getDuration();
 
   std::chrono::system_clock::time_point initializedAt;
-
-
-private:
   std::chrono::system_clock::time_point finalizedAt;
+  
+private:
   std::chrono::steady_clock::time_point initializedAtTicks;
   std::chrono::steady_clock::time_point finalizedAtTicks;
 
@@ -169,7 +168,9 @@ public:
 
   void writeEventLogs(std::string filename);
 
-  void writeJSONEventLog(std::string filename);
+  void writeTimings(std::string filename);
+  
+  void writeEvents(std::string filename);
 
   void printGlobalStats();
 
@@ -198,8 +199,14 @@ private:
   /// Normalize times among all ranks
   void normalize();
 
+  /// Collects first initialize and last finalize time at rank 0.
+  std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point> collectInitAndFinalize();
+
   /// Returns length of longest name
   size_t getMaxNameWidth();
+
+  /// Finds the first initialized time and last finalized time in globalRankData
+  std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point> findFirstAndLastTime();
 
   /// Event for measuring global time, also acts as a barrier
   Event globalEvent;

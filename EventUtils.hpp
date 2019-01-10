@@ -229,23 +229,3 @@ private:
 };
 
 
-/// Class that changes the prefix in its scope
-class ScopedEventPrefix
-{
-public:
-
-  ScopedEventPrefix(const std::string & name)
-  {
-    previousName = EventRegistry::instance().prefix;
-    EventRegistry::instance().prefix += name;
-  }
-
-  ~ScopedEventPrefix()
-  {
-    EventRegistry::instance().prefix = previousName;
-  }
-
-private:
-
-  std::string previousName = "";
-};

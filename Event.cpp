@@ -71,3 +71,16 @@ Event::Clock::duration Event::getDuration()
 {
   return duration;
 }
+
+// =========================
+
+ScopedEventPrefix::ScopedEventPrefix(std::string const & name)
+{
+  previousName = EventRegistry::instance().prefix;
+  EventRegistry::instance().prefix += name;
+}
+
+ScopedEventPrefix::~ScopedEventPrefix()
+{
+  EventRegistry::instance().prefix = previousName;
+}

@@ -63,3 +63,18 @@ private:
   State state = State::STOPPED;
   bool _barrier = false;
 };
+
+
+/// Class that changes the prefix in its scope
+class ScopedEventPrefix
+{
+public:
+
+  ScopedEventPrefix(const std::string & name);
+
+  ~ScopedEventPrefix();
+
+private:
+
+  std::string previousName = "";
+};

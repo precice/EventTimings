@@ -111,12 +111,7 @@ long EventData::getCount() const
   return count;
 }
 
-int EventData::getTimePercentage() const
-{
-  return (static_cast<double>(total.count()) / EventRegistry::instance().getDuration().count()) * 100;
-}
-
-const std::vector<int> & EventData::getData() const
+std::vector<int> const & EventData::getData() const
 {
   return data;
 }
@@ -210,7 +205,6 @@ void EventRegistry::finalize()
   globalEvent.stop();
   localRankData.finalize();
 
-  timestamp = sys_clk::now();
   initialized = false;
   for (auto & e : storedEvents)
     e.second.stop();
@@ -252,17 +246,6 @@ Event & EventRegistry::getStoredEvent(std::string const & name)
   return std::get<0>(insertion)->second;
 }
 
-
-sys_clk::time_point EventRegistry::getTimestamp()
-{
-  return timestamp;
-}
-
-Event::Clock::duration EventRegistry::getDuration()
-{
-  // return localRankData.evData.at("_GLOBAL").total;
-  return localRankData.getDuration();
-}
 
 void EventRegistry::printAll()
 {
@@ -319,8 +302,8 @@ void EventRegistry::print(std::ostream &out)
 
     for (auto & e : localRankData.evData) {
       auto & ev = e.second;
-      table.printLine(ev.getName(), ev.getCount(), ev.getTotal(), ev.getMax(),
-                      ev.getMin(), ev.getAvg(), ev.getTimePercentage());
+      table.printLine(ev.getName(), ev.getCount(), ev.getTotal(), ev.getMax(),  ev.getMin(), ev.getAvg(),
+                      ev.getTotal() / localRankData.getDuration().count() * 100);
     }
 
     out << endl;
@@ -349,20 +332,31 @@ void EventRegistry::writeLog(std::string filename)
   js["Finalized"] = timepoint_to_timestring(finalT);
 
   for (auto const & rank : globalRankData) {
-    auto jEvents = json::array();
+    auto jEvents = json::object();
+    auto jStateChanges = json::array();
     for (auto const & events : rank.evData) {
       auto const & e = events.second;
-      jEvents.push_back({
+      jEvents[events.second.getName()] ={
           {"Name", events.second.getName()},
           {"Count", e.getCount()},
           {"Max", e.getMax()},
-          {"Min", e.getMin()}
-        });
+          {"Min", e.getMin()},
+          {"T%", e.getTotal() / localRankData.getDuration().count() * 100},
+          {"Data" , e.getData()}
+        };
+      for (auto const & sc : e.stateChanges) {
+        jStateChanges.push_back({
+            {"Name", events.second.getName()},
+            {"State", sc.first},
+            {"Timestamp", duration_cast<milliseconds>(sc.second.time_since_epoch()).count()}
+          });
+      }
     }
     js["Ranks"].push_back({
         {"Finalized", timepoint_to_timestring(rank.finalizedAt)},
         {"Initialized", timepoint_to_timestring(rank.initializedAt)},
-        {"Events", jEvents}
+        {"Events", jEvents},
+        {"StateChanges", jStateChanges}
       });
   }
   

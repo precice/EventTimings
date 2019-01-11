@@ -40,7 +40,7 @@ public:
   /// Get the time percentage that the total time of this event took in relation to the global duration.
   int getTimePercentage() const;
 
-  const std::vector<int> & getData() const;
+  std::vector<int> const & getData() const;
 
   Event::Clock::duration max = Event::Clock::duration::min();
   Event::Clock::duration min = Event::Clock::duration::max();
@@ -142,12 +142,6 @@ public:
 
   /// Make this returning a reference or smart ptr?
   Event & getStoredEvent(std::string const & name);
-
-  /// Returns the timestamp of the run, i.e. when the run finished
-  std::chrono::system_clock::time_point getTimestamp();
-
-  /// Returns the duration of the run in ms, either currently running, or fixed when run is stopped.
-  Event::Clock::duration getDuration();
 
   /// Prints a verbose report to stdout and a terse one to EventTimings-AppName.log
   void printAll();

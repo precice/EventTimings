@@ -121,34 +121,6 @@ const std::vector<int> & EventData::getData() const
   return data;
 }
 
-void EventData::writeCSV(std::ostream &out)
-{
-  using namespace std::chrono;
-  auto finalize_time = EventRegistry::instance().getTimestamp();
-  std::time_t ts = system_clock::to_time_t(finalize_time);
-  auto ms = duration_cast<milliseconds>(finalize_time.time_since_epoch()) % 1000;
-
-  out << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << ms.count() << ","
-      << EventRegistry::instance().runName << ","
-      << rank << ","
-      << getName() << ","
-      << getCount() << ","
-      << getTotal() << ","
-      << getMin() << "," << getMax() << "," << getAvg() << ","
-      << getTimePercentage();
-
-  /// Write attached data
-  bool first = true;
-  out << ",\"[";
-  for (auto & d : data) {
-    if (not first)
-      out << ",";
-    out << d;
-    first = false;
-  }
-  out << "]\"" << std::endl;
-}
-
 
 // -----------------------------------------------------------------------
 
@@ -302,20 +274,13 @@ void EventRegistry::printAll()
 
   print();
 
-  std::string csvFile, logFile, jsonEvents;
-  if (applicationName.empty()) {
-    csvFile = "EventTimings.log";
-    logFile = "Events.log";
-    jsonEvents = "Events.json";
-  }
-  else {
-    csvFile = applicationName + "-eventTimings.log";
-    logFile = applicationName + "-events.log";
-    jsonEvents = applicationName + "-events.json";
-    
-  }
-  writeCSV(csvFile);
-  writeEvents(jsonEvents);
+  std::string logFile;
+  if (applicationName.empty())
+    logFile = "Events.json";
+  else
+    logFile = applicationName + "-events.json";
+ 
+  writeLog(logFile);
 }
 
 
@@ -369,38 +334,41 @@ void EventRegistry::print()
   EventRegistry::print(std::cout);
 }
 
-void EventRegistry::writeCSV(std::string filename)
+
+void EventRegistry::writeLog(std::string filename)
 {
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  using json = nlohmann::json;
+  using namespace std::chrono;
 
-  if (rank != 0)
-    return;
+  json js;
 
-  bool fileExists = std::ifstream(filename).is_open();
+  sys_clk::time_point initT, finalT;
+  std::tie(initT, finalT) = findFirstAndLastTime();
+  js["Name"] = runName;
+  js["Initialized"] = timepoint_to_timestring(initT);
+  js["Finalized"] = timepoint_to_timestring(finalT);
 
-  std::ofstream outfile;
-  outfile.open(filename, std::ios::out | std::ios::app);
-  if (not fileExists)
-    outfile << "Timestamp,RunName,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << std::endl;
-
-  std::time_t ts = sys_clk::to_time_t(timestamp);
-  std::tm tm = *std::localtime(&ts);
-
-  outfile << "# Run finished at: " << std::put_time(&tm, "%F %T") << std::endl
-          << "# Number of processors: " << size << std::endl
-          << "# Timestamp,RunName,Rank,Name,Count,Total,Min,Max,Avg,T%,Data" << std::endl;
-
-
-  for (auto e : globalRankData) {
-    for (auto evData : e.evData)
-      evData.second.writeCSV(outfile);
+  for (auto const & rank : globalRankData) {
+    auto jEvents = json::array();
+    for (auto const & events : rank.evData) {
+      auto const & e = events.second;
+      jEvents.push_back({
+          {"Name", events.second.getName()},
+          {"Count", e.getCount()},
+          {"Max", e.getMax()},
+          {"Min", e.getMin()}
+        });
+    }
+    js["Ranks"].push_back({
+        {"Finalized", timepoint_to_timestring(rank.finalizedAt)},
+        {"Initialized", timepoint_to_timestring(rank.initializedAt)},
+        {"Events", jEvents}
+      });
   }
-
-  outfile.close();
+  
+  std::ofstream ofs(filename);
+  ofs << std::setw(2) << js << std::endl;
 }
-
 
 
 std::map<std::string, GlobalEventStats> getGlobalStats(std::vector<RankData> events)
@@ -423,40 +391,6 @@ std::map<std::string, GlobalEventStats> getGlobalStats(std::vector<RankData> eve
   return globalStats;
 }
 
-void EventRegistry::writeEvents(std::string filename)
-{
-  using json = nlohmann::json;
-  using namespace std::chrono;
-
-  json js;
-
-  sys_clk::time_point initT, finalT;
-  std::tie(initT, finalT) = findFirstAndLastTime();
-  js["Name"] = runName;
-  js["Initialized"] = timepoint_to_timestring(initT);
-  js["Finalized"] = timepoint_to_timestring(finalT);
-
-  for (auto const & rank : globalRankData) {
-    auto jEvents = json::array();
-    for (auto const & events : rank.evData) {
-      for (auto const & sc : events.second.stateChanges) {
-        jEvents.push_back({
-            {"Name", events.second.getName()},
-            {"State", std::get<0>(sc)},
-            {"Timestamp", duration_cast<milliseconds>(std::get<1>(sc).time_since_epoch()).count()}
-          }); 
-      }
-    }
-    js["Ranks"].push_back({
-        {"Finalized", timepoint_to_timestring(rank.finalizedAt)},
-        {"Initialized", timepoint_to_timestring(rank.initializedAt)},
-        {"Events", jEvents}        
-      });
-  }
-  
-  std::ofstream ofs(filename);
-  ofs << std::setw(2) << js << std::endl;
-}
 
 void EventRegistry::printGlobalStats()
 {

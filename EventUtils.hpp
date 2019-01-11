@@ -42,9 +42,6 @@ public:
 
   const std::vector<int> & getData() const;
 
-  /// Write one line of CSV data
-  void writeCSV(std::ostream &out);
-
   Event::Clock::duration max = Event::Clock::duration::min();
   Event::Clock::duration min = Event::Clock::duration::max();
   Event::Clock::duration total = Event::Clock::duration::zero();
@@ -162,12 +159,8 @@ public:
   /// Convenience function: Prints to std::cout
   void print();
 
-  void writeCSV(std::string filename);
-
-  void writeTimings(std::string filename);
+  void writeLog(std::string filename);
   
-  void writeEvents(std::string filename);
-
   void printGlobalStats();
 
   MPI_Comm & getMPIComm();

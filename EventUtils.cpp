@@ -28,15 +28,15 @@ void dbgprint(const std::string& format, Args&&... args)
   printf(with_rank.c_str(), std::forward<Args>(args)...);
 }
 
-/// Converts the time_point into a timestring like "2019-01-10T18:30:46.834"
-std::string timepoint_to_timestring(sys_clk::time_point c)
+/// Converts the time_point into a string like "2019-01-10T18:30:46.834"
+std::string timepoint_to_string(sys_clk::time_point c)
 {
   using namespace std::chrono;
   std::time_t ts = sys_clk::to_time_t(c);
   auto ms = duration_cast<milliseconds>(c.time_since_epoch()) % 1000;
 
   std::stringstream ss;
-  ss << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << ms.count();
+  ss << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << std::setfill('0') << ms.count();
   return ss.str();    
 }
 
@@ -322,8 +322,8 @@ void EventRegistry::writeLog(std::string filename)
   sys_clk::time_point initT, finalT;
   std::tie(initT, finalT) = findFirstAndLastTime();
   js["Name"] = runName;
-  js["Initialized"] = timepoint_to_timestring(initT);
-  js["Finalized"] = timepoint_to_timestring(finalT);
+  js["Initialized"] = timepoint_to_string(initT);
+  js["Finalized"] = timepoint_to_string(finalT);
 
   for (auto const & rank : globalRankData) {
     auto jEvents = json::object();
@@ -347,8 +347,8 @@ void EventRegistry::writeLog(std::string filename)
       }
     }
     js["Ranks"].push_back({
-        {"Finalized", timepoint_to_timestring(rank.finalizedAt)},
-        {"Initialized", timepoint_to_timestring(rank.initializedAt)},
+        {"Finalized", timepoint_to_string(rank.finalizedAt)},
+        {"Initialized", timepoint_to_string(rank.initializedAt)},
         {"Events", jEvents},
         {"StateChanges", jStateChanges}
       });

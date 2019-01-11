@@ -45,9 +45,6 @@ public:
   /// Write one line of CSV data
   void writeCSV(std::ostream &out);
 
-  /// Writes all state changes (ones per line)
-  void writeEventLog(std::ostream &out);
-
   Event::Clock::duration max = Event::Clock::duration::min();
   Event::Clock::duration min = Event::Clock::duration::max();
   Event::Clock::duration total = Event::Clock::duration::zero();
@@ -166,8 +163,6 @@ public:
   void print();
 
   void writeCSV(std::string filename);
-
-  void writeEventLogs(std::string filename);
 
   void writeTimings(std::string filename);
   

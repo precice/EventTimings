@@ -149,23 +149,6 @@ void EventData::writeCSV(std::ostream &out)
   out << "]\"" << std::endl;
 }
 
-void EventData::writeEventLog(std::ostream &out)
-{
-  using namespace std::chrono;
-  auto finalize_time = EventRegistry::instance().getTimestamp();
-  std::time_t ts = system_clock::to_time_t(finalize_time);
-  auto ms = duration_cast<milliseconds>(finalize_time.time_since_epoch()) % 1000;
-
-  for (auto & sc : stateChanges) {
-    out << std::put_time(std::localtime(&ts), "%FT%T") << "." << std::setw(3) << ms.count() << ","
-        << EventRegistry::instance().runName << ","
-        << name << ","
-        << rank << ","
-        << duration_cast<milliseconds>(std::get<1>(sc).time_since_epoch()).count() << ","
-        << static_cast<int>(std::get<0>(sc)) << std::endl;
-  }
-}
-
 
 // -----------------------------------------------------------------------
 
@@ -332,7 +315,6 @@ void EventRegistry::printAll()
     
   }
   writeCSV(csvFile);
-  writeEventLogs(logFile);
   writeEvents(jsonEvents);
 }
 
@@ -419,28 +401,6 @@ void EventRegistry::writeCSV(std::string filename)
   outfile.close();
 }
 
-void EventRegistry::writeEventLogs(std::string filename)
-{
-  int rank;
-  MPI_Comm_rank(comm, &rank);
-
-  if (rank != 0)
-    return;
-
-  bool fileExists = std::ifstream(filename).is_open();
-
-  std::ofstream outfile;
-  outfile.open(filename, std::ios::out | std::ios::app);
-  if (not fileExists)
-    outfile << "RunTimestamp,RunName,Name,Rank,Timestamp,State" << "\n";
-
-  for (auto e : globalRankData) {
-    for (auto evData : e.evData)
-      evData.second.writeEventLog(outfile);
-  }
-
-  outfile.close();
-}
 
 
 std::map<std::string, GlobalEventStats> getGlobalStats(std::vector<RankData> events)

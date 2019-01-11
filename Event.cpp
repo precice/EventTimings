@@ -72,7 +72,7 @@ Event::Clock::duration Event::getDuration()
   return duration;
 }
 
-// =========================
+// -----------------------------------------------------------------------
 
 ScopedEventPrefix::ScopedEventPrefix(std::string const & name)
 {

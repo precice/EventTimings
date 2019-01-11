@@ -44,7 +44,7 @@ std::string timepoint_to_timestring(sys_clk::time_point c)
 struct MPI_EventData
 {
   char name[255] = {'\0'};
-  int rank, count = 0;
+  int count = 0;
   long total = 0, max = 0, min = 0;
   int dataSize = 0, stateChangesSize = 0;
 };
@@ -54,16 +54,13 @@ struct MPI_EventData
 
 EventData::EventData(std::string _name) :
   name(_name)
-{
-  MPI_Comm_rank(EventRegistry::instance().getMPIComm(), &rank);
-}
+{}
 
-EventData::EventData(std::string _name, int _rank, long _count, long _total,
+EventData::EventData(std::string _name, long _count, long _total,
                      long _max, long _min, std::vector<int> _data, Event::StateChanges _stateChanges)
   :  max(std::chrono::milliseconds(_max)),
      min(std::chrono::milliseconds(_min)),
      total(std::chrono::milliseconds(_total)),
-     rank(_rank),
      stateChanges(_stateChanges),
      name(_name),
      count(_count),
@@ -73,7 +70,7 @@ EventData::EventData(std::string _name, int _rank, long _count, long _total,
 void EventData::put(Event* event)
 {
   count++;
-  Event::Clock::duration duration = event->getDuration();
+  stdy_clk::duration duration = event->getDuration();
   total += duration;
   min = std::min(duration, min);
   max = std::max(duration, max);
@@ -119,11 +116,6 @@ std::vector<int> const & EventData::getData() const
 
 // -----------------------------------------------------------------------
 
-RankData::RankData()
-{
-  // MPI_Comm_rank(EventRegistry::instance().getMPIComm(), &rank);
-}
-
 void RankData::initialize()
 {
   initializedAt = sys_clk::now();
@@ -136,6 +128,7 @@ void RankData::finalize()
   finalizedAtTicks = stdy_clk::now();
 }
 
+
 void RankData::put(Event* event)
 {
   /// Construct or return EventData object with name as key and name as arg to ctor.
@@ -145,15 +138,16 @@ void RankData::put(Event* event)
   data->second.put(event);
 }
 
+
 void RankData::addEventData(EventData ed)
 {
-  // evData[ed.getName()] = ed;
   evData.emplace(ed.getName(), std::move(ed));
 }
 
+
 void RankData::normalizeTo(sys_clk::time_point t0)
 {
-  auto delta = initializedAt - t0; // duration that this rank initialized after the first rank
+  auto const delta = initializedAt - t0; // duration that this rank initialized after the first rank
 
   for (auto & events : evData) {
     for (auto & sc : events.second.stateChanges) {
@@ -169,7 +163,7 @@ void RankData::clear()
   evData.clear();
 }
 
-stdy_clk::duration RankData::getDuration()
+stdy_clk::duration RankData::getDuration() const
 {
   if (isFinalized)
     return finalizedAtTicks - initializedAtTicks;
@@ -368,17 +362,17 @@ void EventRegistry::writeLog(std::string filename)
 std::map<std::string, GlobalEventStats> getGlobalStats(std::vector<RankData> events)
 {
   std::map<std::string, GlobalEventStats> globalStats;
-  for (auto & e : events) {
-    for (auto & evData : e.evData) {
-      auto event = evData.second;
+  for (size_t rank = 0; rank < events.size(); ++rank) {
+    for (auto & evData : events[rank].evData) {
+      auto const & event = evData.second;
       GlobalEventStats & stats = globalStats[evData.first];
       if (event.max > stats.max) {
         stats.max = event.max;
-        stats.maxRank = event.rank;
+        stats.maxRank = rank;
       }
       if (event.min < stats.min) {
         stats.min = event.min;
-        stats.minRank = event.rank;
+        stats.minRank = rank;
       }
     }
   }
@@ -412,8 +406,8 @@ void EventRegistry::collect()
 {
   // Register MPI datatype
   MPI_Datatype MPI_EVENTDATA;
-  int blocklengths[] = {255, 2, 3, 2};
-  MPI_Aint displacements[] = {offsetof(MPI_EventData, name), offsetof(MPI_EventData, rank),
+  int blocklengths[] = {255, 1, 3, 2};
+  MPI_Aint displacements[] = {offsetof(MPI_EventData, name), offsetof(MPI_EventData, count),
                               offsetof(MPI_EventData, total), offsetof(MPI_EventData, dataSize)};
   MPI_Datatype types[] = {MPI_CHAR, MPI_INT, MPI_LONG, MPI_INT};
   MPI_Type_create_struct(4, blocklengths, displacements, types, &MPI_EVENTDATA);
@@ -433,7 +427,6 @@ void EventRegistry::collect()
   int i = 0;
 
   MPI_Request req;
-  
   // Send the times from the local RankData
   std::array<long, 2> times= {localRankData.initializedAt.time_since_epoch().count(),
                               localRankData.finalizedAt.time_since_epoch().count()};
@@ -447,7 +440,6 @@ void EventRegistry::collect()
     // Send aggregated EventData
     assert(ev.first.size() <= sizeof(eventdata.name));
     ev.first.copy(eventSendBuf[i].name, sizeof(eventdata.name));
-    eventSendBuf[i].rank = rank;
     eventSendBuf[i].count = ev.second.getCount();
     eventSendBuf[i].total = ev.second.getTotal();
     eventSendBuf[i].max = ev.second.getMax();
@@ -505,7 +497,7 @@ void EventRegistry::collect()
         MPI_Unpack(packBuffer, packSize, &position, recvStateChanges.data(),
                    ev.stateChangesSize * sizeof(Event::StateChanges::value_type), MPI_BYTE, comm);
 
-        EventData ed(ev.name, ev.rank, ev.count, ev.total, ev.max, ev.min, recvData, recvStateChanges);
+        EventData ed(ev.name, ev.count, ev.total, ev.max, ev.min, recvData, recvStateChanges);
         data.addEventData(std::move(ed));
       }
       globalRankData.push_back(data);      

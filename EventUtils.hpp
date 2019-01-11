@@ -14,7 +14,7 @@ class EventData
 public:
   explicit EventData(std::string _name);
 
-  EventData(std::string _name, int _rank, long _count, long _total,
+  EventData(std::string _name, long _count, long _total,
             long _max, long _min, std::vector<int> _data, Event::StateChanges stateChanges);
 
   /// Adds an Events data.
@@ -37,16 +37,12 @@ public:
   /// Get the number of all events so far
   long getCount() const;
 
-  /// Get the time percentage that the total time of this event took in relation to the global duration.
-  int getTimePercentage() const;
-
   std::vector<int> const & getData() const;
 
   Event::Clock::duration max = Event::Clock::duration::min();
   Event::Clock::duration min = Event::Clock::duration::max();
   Event::Clock::duration total = Event::Clock::duration::zero();
 
-  int rank;
   Event::StateChanges stateChanges;
 
 private:
@@ -59,7 +55,6 @@ private:
 class RankData
 {
 public:
-  RankData();
 
   /// Records the initialized timestamp
   void initialize();
@@ -81,7 +76,7 @@ public:
   /// Map of EventName -> EventData, should be private later
   std::map<std::string, EventData> evData;
 
-  std::chrono::steady_clock::duration getDuration();
+  std::chrono::steady_clock::duration getDuration() const;
 
   std::chrono::system_clock::time_point initializedAt;
   std::chrono::system_clock::time_point finalizedAt;

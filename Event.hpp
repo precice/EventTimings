@@ -21,7 +21,7 @@ public:
   /// Default clock type. All other chrono types are derived from it.
   using Clock = std::chrono::steady_clock;
 
-  using StateChanges = std::vector<std::tuple<State, Clock::time_point>>;
+  using StateChanges = std::vector<std::pair<State, Clock::time_point>>;
 
   /// An Event can't be copied.
   Event(const Event & other) = delete;

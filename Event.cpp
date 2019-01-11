@@ -31,7 +31,7 @@ void Event::start(bool barrier)
     MPI_Barrier(EventRegistry::instance().getMPIComm());
 
   state = State::STARTED;
-  stateChanges.push_back(std::make_tuple(State::STARTED, Clock::now()));
+  stateChanges.push_back(std::make_pair(State::STARTED, Clock::now()));
   starttime = Clock::now();
 }
 
@@ -45,7 +45,7 @@ void Event::stop(bool barrier)
       auto stoptime = Clock::now();
       duration += Clock::duration(stoptime - starttime);
     }
-    stateChanges.push_back(std::make_tuple(State::STOPPED, Clock::now()));
+    stateChanges.push_back(std::make_pair(State::STOPPED, Clock::now()));
     state = State::STOPPED;
     EventRegistry::instance().put(this);
     data.clear();
@@ -61,7 +61,7 @@ void Event::pause(bool barrier)
       MPI_Barrier(EventRegistry::instance().getMPIComm());
 
     auto stoptime = Clock::now();
-    stateChanges.push_back(std::make_tuple(State::PAUSED, Clock::now()));
+    stateChanges.push_back(std::make_pair(State::PAUSED, Clock::now()));
     state = State::PAUSED;
     duration += Clock::duration(stoptime - starttime);
   }

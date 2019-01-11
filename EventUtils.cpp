@@ -162,7 +162,7 @@ void RankData::normalizeTo(sys_clk::time_point t0)
 
   for (auto & events : evData) {
     for (auto & sc : events.second.stateChanges) {
-      auto & tp = std::get<1>(sc);
+      auto & tp = sc.second;
       tp = tp - initializedAtTicks.time_since_epoch() + delta;
       assert(tp.time_since_epoch().count() > 0); // Trying to do normalize twice?
     }

@@ -28,7 +28,7 @@ void dbgprint(const std::string& format, Args&&... args)
   printf(with_rank.c_str(), std::forward<Args>(args)...);
 }
 
-
+/// Converts the time_point into a timestring like "2019-01-10T18:30:46.834"
 std::string timepoint_to_timestring(sys_clk::time_point c)
 {
   using namespace std::chrono;
@@ -214,6 +214,11 @@ void RankData::normalizeTo(sys_clk::time_point t0)
   }
 }
 
+void RankData::clear()
+{
+  evData.clear();
+}
+
 stdy_clk::duration RankData::getDuration()
 {
   if (isFinalized)
@@ -247,7 +252,7 @@ void EventRegistry::initialize(std::string applicationName, std::string runName,
 
 void EventRegistry::finalize()
 {
-  globalEvent.stop(true); // acts as a barrier
+  globalEvent.stop();
   localRankData.finalize();
 
   timestamp = sys_clk::now();
@@ -261,7 +266,7 @@ void EventRegistry::finalize()
 
 void EventRegistry::clear()
 {
-  localRankData.evData.clear();
+  localRankData.clear();
 }
 
 void EventRegistry::signal_handler(int signal)
@@ -461,6 +466,7 @@ std::map<std::string, GlobalEventStats> getGlobalStats(std::vector<RankData> eve
 void EventRegistry::writeEvents(std::string filename)
 {
   using json = nlohmann::json;
+  using namespace std::chrono;
 
   json js;
 
@@ -477,7 +483,7 @@ void EventRegistry::writeEvents(std::string filename)
         jEvents.push_back({
             {"Name", events.second.getName()},
             {"State", std::get<0>(sc)},
-            {"Timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(std::get<1>(sc).time_since_epoch()).count()}
+            {"Timestamp", duration_cast<milliseconds>(std::get<1>(sc).time_since_epoch()).count()}
           }); 
       }
     }
@@ -502,7 +508,7 @@ void EventRegistry::printGlobalStats()
   for (auto & e : stats) {
     auto & ev = e.second;
     double rel = 0;
-    if (ev.max != Event::Clock::duration::zero()) // Guard against division by zero
+    if (ev.max != stdy_clk::duration::zero()) // Guard against division by zero
       rel = static_cast<double>(ev.min.count()) / ev.max.count();
     t.printLine(e.first, ev.max, ev.maxRank, ev.min, ev.minRank, rel);
   }

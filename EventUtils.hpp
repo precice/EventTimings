@@ -81,6 +81,9 @@ public:
   /// Normalizes all Events to zero time of t0
   void normalizeTo(std::chrono::system_clock::time_point t0);
 
+  /// Clears all Event data
+  void clear();
+
   /// Map of EventName -> EventData, should be private later
   std::map<std::string, EventData> evData;
 
@@ -107,8 +110,6 @@ struct GlobalEventStats
   Event::Clock::duration min   = Event::Clock::duration::max();
 };
 
-
-using GlobalEvents = std::multimap<std::string, EventData>;
 
 /// High level object that stores data of all events.
 /** Call EventRegistry::intialize at the beginning of your application and

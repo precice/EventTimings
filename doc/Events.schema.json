@@ -1,0 +1,136 @@
+{
+    "type": "object",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "description": "Information for a single run",
+    "properties": {
+        "Initialized": {
+            "type": "string",
+            "format": "date-time",
+            "description" : "Date and time the first rank has initialized the run."
+        },
+        "Finalized": {
+            "type": "string",
+            "format": "date-time",
+            "description" : "Date and time the last rank has finalized the run."
+        },
+        "Name": {
+            "type": "string",
+            "description" : "Name of run, e.g. problem size"
+        },
+        "Ranks": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/Rank"
+            }
+        }
+    },
+    "required": [
+        "Finalized",
+        "Initialized",
+        "Name",
+        "Ranks"
+    ],
+    "definitions" : {
+        "Rank": {
+            "type": "object",
+            "description": "Holds timings and state changes for a single rank.",
+            "additionalProperties": false,
+            "properties": {
+                "Initialized": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Date and time when this rank initialized."
+                },
+                "Finalized": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Date and time when this rank finalized."
+                },
+                "Timings": {
+                    "type": "object",
+                    "propertyNames": {
+                        "pattern": "^.*$"
+                    },
+                    "$ref" : "#/definitions/Timing"
+                },
+                "StateChanges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/StateChange"
+                    }
+                }
+            },
+            "required": [
+                "Initialized",
+                "Finalized",
+                "Events",
+                "StateChanges"
+            ]
+        },
+        "Timing": {
+            "type": "object",
+            "description": "Aggregated timings for one event on one rank.",
+            "additionalProperties": false,
+            "properties": {
+                "Count": {
+                    "type": "integer",
+                    "description": "Number of times this event was started."
+                },
+                "Max": {
+                    "type": "integer",
+                    "description": "Maximum time (in milliseconds) this event took."
+                },
+                "Min": {
+                    "type": "integer",
+                    "description": "Minimum time (in milliseconds) this event took."
+                },
+                "T%": {
+                    "type": "integer",
+                    "description": "Percentage of the entire time of the run this event took.",
+                    "minimum": 0,
+                    "maximum": 100
+                },
+                "Data": {
+                    "type": "array",
+                    "description": "Data given to this event.",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "required": [
+                "Name",
+                "Count",
+                "Max",
+                "Min",
+                "T%",
+                "Data"
+            ]
+        },
+
+        "StateChange": {
+            "type": "object",
+            "description" : "A state change (stopped, started, paused) for a single event.",
+            "additionalProperties": false,
+            "properties": {
+                "Name": {
+                    "type": "string",
+                    "description": "Name of the event"
+                },
+                "State": {
+                    "type": "integer",
+                    "description": "State this event changed into. 0: Stopped, 1: Started, 2: Paused"
+                },
+                "Timestamp": {
+                    "type": "integer",
+                    "description": "Ticks of the steady clock when this event changed states"
+                }
+            },
+            "required": [
+                "Name",
+                "State",
+                "Timestamp"
+            ]
+        }
+    }
+}

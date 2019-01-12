@@ -326,12 +326,11 @@ void EventRegistry::writeLog(std::string filename)
   js["Finalized"] = timepoint_to_string(finalT);
 
   for (auto const & rank : globalRankData) {
-    auto jEvents = json::object();
+    auto jTimings = json::object();
     auto jStateChanges = json::array();
     for (auto const & events : rank.evData) {
       auto const & e = events.second;
-      jEvents[events.second.getName()] ={
-          {"Name", events.second.getName()},
+      jTimings[events.second.getName()] = {
           {"Count", e.getCount()},
           {"Max", e.getMax()},
           {"Min", e.getMin()},
@@ -349,7 +348,7 @@ void EventRegistry::writeLog(std::string filename)
     js["Ranks"].push_back({
         {"Finalized", timepoint_to_string(rank.finalizedAt)},
         {"Initialized", timepoint_to_string(rank.initializedAt)},
-        {"Events", jEvents},
+        {"Timings", jTimings},
         {"StateChanges", jStateChanges}
       });
   }

@@ -7,7 +7,7 @@ The tool is available through chromium browsers (e.g. Google Chrome) using the u
 Format reference: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
 """
 
-import argparse, json, sys
+import argparse, datetime, json, sys
 
 
 class StoreDictKeyPair(argparse.Action):
@@ -57,6 +57,21 @@ def check_and_parse_args():
     return parser.parse_args()
 
 
+def normalize_times(*args):
+    """ Normalize times to first t0 amoung all participants. """
+    # Find the minimum Initialized time among all participants
+    minT = min([datetime.datetime.fromisoformat(d["Initialized"]) for d in args])
+    
+    for d in args:
+        init = datetime.datetime.fromisoformat(d["Initialized"])
+        delta = init - minT
+        for ranks in d["Ranks"]:
+            for sc in ranks["StateChanges"]:
+                sc["Timestamp"] = sc["Timestamp"] + delta.seconds * 1000
+                
+    return args
+
+
 def build_process_name_entry(name, pid):
     """
     Builds a dictionary entry representing a metadata event to name a process id.
@@ -89,13 +104,15 @@ def main():
     if args.mapping:
         event_mapping = json.loads(args.mapping)
 
+    logs = args.logs.items()
+    pids = range(len(logs))
+    jsons = normalize_times(*[json.load(open(i[1])) for i in logs])
+        
     # The output will be in the JSONArray format described in the specification
     traces = []
-    for pid, (participant, f) in enumerate(args.logs.items()):
+    for pid, participant, data in zip(pids, logs, jsons):
         # The pid identifies each participant and is used as process id
         traces.append(build_process_name_entry(participant, pid))
-
-        data = json.load(open(f))
         
         for rank, rank_data in enumerate(data["Ranks"]):
             if (args.ranks) and (rank not in args.ranks):

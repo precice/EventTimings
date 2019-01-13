@@ -6,15 +6,8 @@ The tool is available through chromium browsers (e.g. Google Chrome) using the u
 
 Format reference: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
 """
-from __future__ import print_function, with_statement
 
-import csv
-import json
-import argparse
-import sys
-from io import open
-
-DEFAULT_CATEGORY = "default"
+import argparse, datetime, json, sys
 
 
 class StoreDictKeyPair(argparse.Action):
@@ -24,8 +17,7 @@ class StoreDictKeyPair(argparse.Action):
     """
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         self._nargs = nargs
-        super(StoreDictKeyPair, self).__init__(
-            option_strings, dest, nargs=nargs, **kwargs)
+        super().__init__(option_strings, dest, nargs=nargs, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
         my_dict = {}
@@ -33,6 +25,7 @@ class StoreDictKeyPair(argparse.Action):
             k, v = kv.split("=")
             my_dict[k] = v
         setattr(namespace, self.dest, my_dict)
+
 
 
 def check_and_parse_args():
@@ -46,38 +39,49 @@ def check_and_parse_args():
                         nargs="+", metavar="PARTICIPANT=LOGFILE")
     parser.add_argument("-p", "--pretty",  action="store_true",
                         help="Print the JSON in a pretty format.")
-    parser.add_argument("-d", "--default",  default=DEFAULT_CATEGORY, metavar="CATEGORY",
+    parser.add_argument("-d", "--default",  default="default", metavar="CATEGORY",
                         help="The default category for unknown events.")
     parser.add_argument("-m", "--mapping", metavar="FILE",
-                        help="The file containing mappings from event-names to categories."
-                        )
-    parser.add_argument("-r", "--run", metavar="RUN",
-                        help="Only output results of the given run."
-                        )
+                        help="The file containing mappings from event-names to categories.")
     parser.add_argument("-g", "--noglobal", action="store_true",
-                        help="Ignore the global event."
-                        )
-    parser.add_argument("-k", "--ranks", type=int, nargs="+", metavar="RANK",
-                        help="Only output the given ranks."
-                        )
+                        help="Ignore the global event.")
+    parser.add_argument("-k", "--ranks", type = int, nargs="+", metavar="RANK",
+                        help="Only output the given ranks.")
+    parser.add_argument("-t", "--maxtime", type = int, default = -1,
+                        help = "Maximum time stamp to convert, milliseconds after init of first rank.")
+
 
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
         sys.exit(1)
-    return parser.parse_args(sys.argv[1:])
+    return parser.parse_args()
+
+
+def normalize_times(*args):
+    """ Normalize times to first t0 amoung all participants. """
+    # Find the minimum Initialized time among all participants
+    minT = min([datetime.datetime.fromisoformat(d["Initialized"]) for d in args])
+    
+    for d in args:
+        init = datetime.datetime.fromisoformat(d["Initialized"])
+        delta = init - minT
+        for ranks in d["Ranks"]:
+            for sc in ranks["StateChanges"]:
+                sc["Timestamp"] = sc["Timestamp"] + delta.seconds * 1000
+                
+    return args
 
 
 def build_process_name_entry(name, pid):
     """
     Builds a dictionary entry representing a metadata event to name a process id.
     """
-    return {
-            "name": "process_name",
-            "ph": "M",
-            "pid": pid,
-            "tid": 0,
-            "args": {"name": name}
-        }
+    return { "name": "process_name",
+             "ph": "M",
+             "pid": pid,
+             "tid": 0,
+             "args": {"name": name}
+    }
 
 
 def build_thread_name_entry(name, pid, tid):
@@ -85,13 +89,12 @@ def build_thread_name_entry(name, pid, tid):
     Builds a dictionary entry representing a metadata event to name a thread id
     local to a process.
     """
-    return {
-            "name": "thread_name",
-            "ph": "M",
-            "pid": pid,
-            "tid": int(tid),
-            "args": {"name": name}
-        }
+    return { "name": "thread_name",
+             "ph": "M",
+             "pid": pid,
+             "tid": tid,
+             "args": {"name": name}
+    }
 
 
 def main():
@@ -99,40 +102,41 @@ def main():
 
     event_mapping = {}
     if args.mapping:
-        with open(args.mapping, 'rb') as jsonfile:
-            event_mapping = json.load(jsonfile)
+        event_mapping = json.loads(args.mapping)
 
+    logs = args.logs.items()
+    pids = range(len(logs))
+    jsons = normalize_times(*[json.load(open(i[1])) for i in logs])
+        
     # The output will be in the JSONArray format described in the specification
     traces = []
-    for pid, (participant, file) in enumerate(args.logs.items()):
+    for pid, participant, data in zip(pids, logs, jsons):
         # The pid identifies each participant and is used as process id
         traces.append(build_process_name_entry(participant, pid))
-        with open(file, newline="") as csvfile:
-            ranks = set()
-            log = csv.DictReader(csvfile, delimiter=",")
-            for row in log:
-                if args.run and (row["RunName"] != args.run):
+        
+        for rank, rank_data in enumerate(data["Ranks"]):
+            if (args.ranks) and (rank not in args.ranks):
+                continue
+            traces.append(build_thread_name_entry("Rank {:4d}".format(rank), pid, rank))
+            
+            for sc in rank_data["StateChanges"]:
+                if args.noglobal and sc["Name"] == "_GLOBAL":
                     continue
-                if args.noglobal and (row["Name"] == "_GLOBAL"):
+                if args.maxtime > -1 and sc["Timestamp"] > args.maxtime:
                     continue
-                if args.ranks and (int(row["Rank"]) not in args.ranks):
-                    continue
-                rank = row["Rank"]
-                if rank not in ranks:
-                    traces.append(build_thread_name_entry(
-                        "Rank {:4d}".format(int(rank)), pid, rank))
-                    ranks.add(rank)
+
                 # The current log format contains begin and end timestamps of
-                # events which corresponds to the specified duration events
+                # events which corresponds to the specified duration events    
                 event = {
-                    "name": row["Name"],
-                    "cat": event_mapping.get(row["Name"], args.default),
-                    "tid": int(rank),
-                    "pid": int(pid),
-                    "ts": int(row["Timestamp"]) * 1000, # convert from ms to µs
+                    "name": sc["Name"],
+                    "cat": event_mapping.get(sc["Name"], args.default),
+                    "tid": rank,
+                    "pid": pid,
+                    "ts": sc["Timestamp"] * 1000, # convert from ms to µs
+                    "ph" : "B" if sc["State"] == 1 else "E"
                 }
-                event["ph"] = "B" if row["State"] == "1" else "E"
                 traces.append(event)
+
     if args.pretty:
         print(json.dumps(traces, indent=2))
     else:

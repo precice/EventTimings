@@ -58,7 +58,6 @@ public:
 private:
 
   Clock::time_point starttime;
-  // Clock::time_point stoptime;
   Clock::duration duration = Clock::duration::zero();
   State state = State::STOPPED;
   bool _barrier = false;

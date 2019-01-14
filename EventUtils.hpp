@@ -138,17 +138,13 @@ public:
   /// Make this returning a reference or smart ptr?
   Event & getStoredEvent(std::string const & name);
 
-  /// Prints a verbose report to stdout and a terse one to EventTimings-AppName.log
+  /// Prints a pretty report to stdout and a JSON report to appName-events.json
   void printAll();
 
   /// Prints the result table to an arbitrary stream.
-  /** terse enables a more machine readable format with one event per line, seperated by whitespace. */
-  void print(std::ostream &out);
+  void writeTimings(std::ostream &out);
 
-  /// Convenience function: Prints to std::cout
-  void print();
-
-  void writeLog(std::string filename);
+  void writeLog(std::ostream & out);
   
   void printGlobalStats();
 
@@ -186,16 +182,10 @@ private:
   /// Finds the first initialized time and last finalized time in globalRankData
   std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point> findFirstAndLastTime();
 
-  /// Event for measuring global time, also acts as a barrier
+  /// Event for measuring global time
   Event globalEvent;
 
   bool initialized = false;
-
-  /// Timestamp when the run finished
-  std::chrono::system_clock::time_point timestamp;
-
-  /// Map of name -> events for this rank only
-  // std::map<std::string, EventData> events;
 
   std::map<std::string, Event> storedEvents;
 

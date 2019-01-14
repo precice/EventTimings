@@ -57,6 +57,10 @@ def check_and_parse_args():
     return parser.parse_args()
 
 
+def eprint(*args, **kwargs):
+    """ Debug function, prints to stderr. """
+    print(*args, file=sys.stderr, **kwargs)
+    
 def normalize_times(*args):
     """ Normalize times to first t0 amoung all participants. """
     # Find the minimum Initialized time among all participants
@@ -67,7 +71,7 @@ def normalize_times(*args):
         delta = init - minT
         for ranks in d["Ranks"]:
             for sc in ranks["StateChanges"]:
-                sc["Timestamp"] = sc["Timestamp"] + delta.seconds * 1000
+                sc["Timestamp"] = int(sc["Timestamp"] + (delta.total_seconds() * 1000))
                 
     return args
 
@@ -107,12 +111,13 @@ def main():
     logs = args.logs.items()
     pids = range(len(logs))
     jsons = normalize_times(*[json.load(open(i[1])) for i in logs])
+    # jsons = [json.load(open(i[1])) for i in logs]
         
     # The output will be in the JSONArray format described in the specification
     traces = []
     for pid, participant, data in zip(pids, logs, jsons):
         # The pid identifies each participant and is used as process id
-        traces.append(build_process_name_entry(participant, pid))
+        traces.append(build_process_name_entry(participant[0], pid))
         
         for rank, rank_data in enumerate(data["Ranks"]):
             if (args.ranks) and (rank not in args.ranks):

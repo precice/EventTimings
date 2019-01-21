@@ -143,12 +143,14 @@ void RankData::initialize()
 {
   initializedAt = sys_clk::now();
   initializedAtTicks = stdy_clk::now();
+  isFinalized = false;
 }
 
 void RankData::finalize()
 {
   finalizedAt = sys_clk::now();
   finalizedAtTicks = stdy_clk::now();
+  isFinalized = true;
 }
 
 
@@ -187,12 +189,12 @@ void RankData::clear()
   evData.clear();
 }
 
-stdy_clk::duration RankData::getDuration() const
+sys_clk::duration RankData::getDuration() const
 {
   if (isFinalized)
-    return finalizedAtTicks - initializedAtTicks;
+    return finalizedAt - initializedAt;
   else
-    return stdy_clk::now() - initializedAtTicks;
+    return sys_clk::now() - initializedAt;
 }
 
 
@@ -357,6 +359,7 @@ void EventRegistry::writeLog(std::ostream & out)
       auto const & e = events.second;
       jTimings[events.second.getName()] = {
           {"Count", e.getCount()},
+          {"Total", e.getTotal()},
           {"Max", e.getMax()},
           {"Min", e.getMin()},
           {"T%", e.getTotal() / duration * 100},

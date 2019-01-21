@@ -77,7 +77,7 @@ public:
   /// Map of EventName -> EventData, should be private later
   std::map<std::string, EventData> evData;
 
-  std::chrono::steady_clock::duration getDuration() const;
+  std::chrono::system_clock::duration getDuration() const;
 
   std::chrono::system_clock::time_point initializedAt;
   std::chrono::system_clock::time_point finalizedAt;
@@ -86,7 +86,7 @@ private:
   std::chrono::steady_clock::time_point initializedAtTicks;
   std::chrono::steady_clock::time_point finalizedAtTicks;
 
-  bool isFinalized = false;
+  bool isFinalized = true;
   int rank = 0;
 
 };

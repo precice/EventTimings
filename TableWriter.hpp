@@ -10,10 +10,11 @@ struct Column
 {
   std::string name;
   int width;
+  int precision;
 
-  explicit Column(std::string const & colName);
+  explicit Column(std::string const & name);
   
-  Column(std::string const & colName, int colWidth);
+  Column(std::string const & name, int width);
 };
 
 

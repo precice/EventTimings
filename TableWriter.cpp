@@ -8,14 +8,14 @@
 #include <vector>
 
 
-Column::Column(std::string const & colName)
-  : name(colName),
-    width(colName.size())
+Column::Column(std::string const & name)
+  : name(name),
+    width(name.size())
 {}
 
-Column::Column(std::string const & colName, int colWidth) :
-  name(colName),
-  width(colWidth)
+Column::Column(std::string const & name, int width) :
+  name(name),
+  width(std::max(width, static_cast<int>(name.size())))
 {}
 
 Table::Table(std::initializer_list<std::string> headers)
@@ -41,8 +41,8 @@ void Table::printHeader()
   }
     
   *out << endl;
-  int headerLength = std::accumulate(cols.begin(), cols.end(), 0, [](int count, Column col){
-      return count + col.width + 3;
+  int headerLength = std::accumulate(cols.begin(), cols.end(), 0, [this](int count, Column col){
+    return count + col.width + sepChar.size() + 2;
     });
   std::string sepLine(headerLength, '-');
   *out << sepLine << endl;

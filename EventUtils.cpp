@@ -314,21 +314,20 @@ void EventRegistry::writeTimings(std::ostream &out)
         << "Number of processors = " << size << std::endl
         << "# Rank: " << rank << std::endl << std::endl;
 
-    Table table( {
-        {getMaxNameWidth(), "Event"},
-        {10, "Count"},
-        {10, "Total[ms]"},
-        {10, "Max[ms]"},
-        {10, "Min[ms]"},
-        {10, "Avg[ms]"},
-        {10, "T[%]"}
-      });
+    Table table;
+    table.addColumn("Event", getMaxNameWidth());
+    table.addColumn("Count", 10);
+    table.addColumn("Total[ms]", 10);
+    table.addColumn("Max[ms]", 10);
+    table.addColumn("Min[ms]", 10);
+    table.addColumn("Avg[ms]", 10);
+    table.addColumn("Time Ratio", 6, 3);
     table.printHeader();
     
     for (auto & e : localRankData.evData) {
       auto & ev = e.second;
-      table.printLine(ev.getName(), ev.getCount(), ev.getTotal(), ev.getMax(),  ev.getMin(), ev.getAvg(),
-                      ev.getTotal() / duration * 100);
+      table.printRow(ev.getName(), ev.getCount(), ev.getTotal(), ev.getMax(),  ev.getMin(), ev.getAvg(),
+                     ev.getTotal() / duration);
     }
 
     out << endl;
@@ -362,7 +361,7 @@ void EventRegistry::writeLog(std::ostream & out)
           {"Total", e.getTotal()},
           {"Max", e.getMax()},
           {"Min", e.getMin()},
-          {"T%", e.getTotal() / duration * 100},
+          {"TimeRatio", e.getTotal() / duration},
           {"Data" , e.getData()}
         };
       for (auto const & sc : e.stateChanges) {
@@ -387,8 +386,13 @@ void EventRegistry::writeLog(std::ostream & out)
 
 void EventRegistry::printGlobalStats()
 {
-  Table t({ {getMaxNameWidth(), "Name"},
-      {10, "Max"}, {10, "MaxOnRank"}, {10, "Min"}, {10, "MinOnRank"}, {10, "Min/Max"} });
+  Table t;
+  t.addColumn("Name", getMaxNameWidth());
+  t.addColumn("Max", 10);
+  t.addColumn("MaxOnRank", 10);
+  t.addColumn("Min", 10);
+  t.addColumn("MinOnRank", 10);
+  t.addColumn("Min/Max", 10);
   t.printHeader();
 
   auto stats = getGlobalStats(globalRankData);
@@ -397,7 +401,8 @@ void EventRegistry::printGlobalStats()
     double rel = 0;
     if (ev.max != stdy_clk::duration::zero()) // Guard against division by zero
       rel = static_cast<double>(ev.min.count()) / ev.max.count();
-    t.printLine(e.first, ev.max, ev.maxRank, ev.min, ev.minRank, rel);
+      
+    t.printRow(e.first, ev.max, ev.maxRank, ev.min, ev.minRank, rel);
   }
 }
 

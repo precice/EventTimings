@@ -90,15 +90,15 @@ EventData::EventData(std::string _name, long _count, long _total,
 {}
 
 
-void EventData::put(Event* event)
+void EventData::put(Event const & event)
 {
   count++;
-  stdy_clk::duration duration = event->getDuration();
+  stdy_clk::duration duration = event.getDuration();
   total += duration;
   min = std::min(duration, min);
   max = std::max(duration, max);
-  data.insert(std::end(data), std::begin(event->data), std::end(event->data));
-  stateChanges.insert(std::end(stateChanges), std::begin(event->stateChanges), std::end(event->stateChanges));
+  data.insert(std::end(data), std::begin(event.data), std::end(event.data));
+  stateChanges.insert(std::end(stateChanges), std::begin(event.stateChanges), std::end(event.stateChanges));
 }
 
 std::string EventData::getName() const
@@ -154,12 +154,12 @@ void RankData::finalize()
 }
 
 
-void RankData::put(Event* event)
+void RankData::put(Event const & event)
 {
   /// Construct or return EventData object with name as key and name as arg to ctor.
   auto data = std::get<0>(evData.emplace(std::piecewise_construct,
-                                         std::forward_as_tuple(event->name),
-                                         std::forward_as_tuple(event->name)));
+                                         std::forward_as_tuple(event.name),
+                                         std::forward_as_tuple(event.name)));
   data->second.put(event);
 }
 
@@ -251,7 +251,7 @@ void EventRegistry::signal_handler(int signal)
   }
 }
 
-void EventRegistry::put(Event* event)
+void EventRegistry::put(Event const & event)
 {
   localRankData.put(event);
 }

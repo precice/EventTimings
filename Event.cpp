@@ -5,7 +5,7 @@ Event::Event(std::string eventName, Clock::duration initialDuration)
   : name(EventRegistry::instance().prefix + eventName),
     duration(initialDuration)
 {
-  EventRegistry::instance().put(this);
+  EventRegistry::instance().put(*this);
 }
 
 Event::Event(std::string eventName, bool barrier, bool autostart)
@@ -47,7 +47,7 @@ void Event::stop(bool barrier)
     }
     stateChanges.push_back(std::make_pair(State::STOPPED, Clock::now()));
     state = State::STOPPED;
-    EventRegistry::instance().put(this);
+    EventRegistry::instance().put(*this);
     data.clear();
     stateChanges.clear();
     duration = Clock::duration::zero();
@@ -67,7 +67,7 @@ void Event::pause(bool barrier)
   }
 }
 
-Event::Clock::duration Event::getDuration()
+Event::Clock::duration Event::getDuration() const
 {
   return duration;
 }

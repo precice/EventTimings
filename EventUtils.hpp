@@ -18,7 +18,7 @@ public:
             long _max, long _min, std::vector<int> _data, Event::StateChanges stateChanges);
 
   /// Adds an Events data.
-  void put(Event* event);
+  void put(Event const & event);
 
   std::string getName() const;
 
@@ -63,7 +63,7 @@ public:
   void finalize();
 
   /// Adds a new event
-  void put(Event* event);
+  void put(Event const & event);
 
   /// Adds aggregated data for a specific event
   void addEventData(EventData ed);
@@ -134,7 +134,7 @@ public:
   void signal_handler(int signal);
 
   /// Records the event.
-  void put(Event* event);
+  void put(Event const & event);
 
   /// Returns or creates a stored event, i.e., an event with life beyond the current scope
   Event & getStoredEvent(std::string const & name);

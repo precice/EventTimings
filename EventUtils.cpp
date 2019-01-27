@@ -13,9 +13,6 @@
 #include "prettyprint.hpp"
 #include "TableWriter.hpp"
 
-using std::cout;
-using std::endl;
-
 using sys_clk = std::chrono::system_clock;
 using stdy_clk = std::chrono::steady_clock;
 
@@ -286,13 +283,13 @@ void EventRegistry::printAll()
   else
     logFile = applicationName + "-events.json";
 
-  writeTimings(std::cout);
+  writeSummary(std::cout);
   std::ofstream ofs(logFile);
-  writeLog(ofs);
+  writeJSON(ofs);
 }
 
 
-void EventRegistry::writeTimings(std::ostream &out)
+void EventRegistry::writeSummary(std::ostream &out)
 {
   int rank, size;
   MPI_Comm_rank(comm, &rank);
@@ -300,44 +297,60 @@ void EventRegistry::writeTimings(std::ostream &out)
 
   if (rank == 0) {
     using std::endl;
-    using std::setw; using std::setprecision;
-    using std::left; using std::right;
-
-    std::time_t ts = sys_clk::to_time_t(localRankData.finalizedAt);
-    double const duration = std::chrono::duration_cast<std::chrono::milliseconds>(localRankData.getDuration()).count();
+    { // Print per event stats
+      std::time_t ts = sys_clk::to_time_t(localRankData.finalizedAt);
+      double const duration = std::chrono::duration_cast<std::chrono::milliseconds>(localRankData.getDuration()).count();
     
-    out << "Run finished at " << std::asctime(std::localtime(&ts));
+      out << "Run finished at " << std::asctime(std::localtime(&ts));
 
-    out << "Global runtime       = "
-        << duration << "ms / "
-        << duration / 1000 << "s" << std::endl
-        << "Number of processors = " << size << std::endl
-        << "# Rank: " << rank << std::endl << std::endl;
+      out << "Global runtime       = "
+          << duration << "ms / "
+          << duration / 1000 << "s" << endl
+          << "Number of processors = " << size << endl
+          << "# Rank: " << rank << endl << endl;
 
-    Table table;
-    table.addColumn("Event", getMaxNameWidth());
-    table.addColumn("Count", 10);
-    table.addColumn("Total[ms]", 10);
-    table.addColumn("Max[ms]", 10);
-    table.addColumn("Min[ms]", 10);
-    table.addColumn("Avg[ms]", 10);
-    table.addColumn("Time Ratio", 6, 3);
-    table.printHeader();
+      Table table(out);
+      table.addColumn("Event", getMaxNameWidth());
+      table.addColumn("Count", 10);
+      table.addColumn("Total[ms]", 10);
+      table.addColumn("Max[ms]", 10);
+      table.addColumn("Min[ms]", 10);
+      table.addColumn("Avg[ms]", 10);
+      table.addColumn("Time Ratio", 6, 3);
+      table.printHeader();
     
-    for (auto & e : localRankData.evData) {
-      auto & ev = e.second;
-      table.printRow(ev.getName(), ev.getCount(), ev.getTotal(), ev.getMax(),  ev.getMin(), ev.getAvg(),
-                     ev.getTotal() / duration);
+      for (auto & e : localRankData.evData) {
+        auto & ev = e.second;
+        table.printRow(ev.getName(), ev.getCount(), ev.getTotal(), ev.getMax(),  ev.getMin(), ev.getAvg(),
+                       ev.getTotal() / duration);
+      }
     }
+    out << endl << endl;
+    { // Print aggregated states
+      Table t(out);
+      t.addColumn("Name", getMaxNameWidth());
+      t.addColumn("Max", 10);
+      t.addColumn("MaxOnRank", 10);
+      t.addColumn("Min", 10);
+      t.addColumn("MinOnRank", 10);
+      t.addColumn("Min/Max", 10);
+      t.printHeader();
 
-    out << endl;
-    printGlobalStats();
-    out << endl << std::flush;
+      auto stats = getGlobalStats(globalRankData);
+      for (auto & e : stats) {
+        auto & ev = e.second;
+        double rel = 0;
+        if (ev.max != stdy_clk::duration::zero()) // Guard against division by zero
+          rel = static_cast<double>(ev.min.count()) / ev.max.count();
+      
+        t.printRow(e.first, ev.max, ev.maxRank, ev.min, ev.minRank, rel);
+      }
+    }
   }
 }
 
 
-void EventRegistry::writeLog(std::ostream & out)
+void EventRegistry::writeJSON(std::ostream & out)
 {
   using json = nlohmann::json;
   using namespace std::chrono;
@@ -357,13 +370,13 @@ void EventRegistry::writeLog(std::ostream & out)
     for (auto const & events : rank.evData) {
       auto const & e = events.second;
       jTimings[events.second.getName()] = {
-          {"Count", e.getCount()},
-          {"Total", e.getTotal()},
-          {"Max", e.getMax()},
-          {"Min", e.getMin()},
-          {"TimeRatio", e.getTotal() / duration},
-          {"Data" , e.getData()}
-        };
+        {"Count", e.getCount()},
+        {"Total", e.getTotal()},
+        {"Max", e.getMax()},
+        {"Min", e.getMin()},
+        {"TimeRatio", e.getTotal() / duration},
+        {"Data" , e.getData()}
+      };
       for (auto const & sc : e.stateChanges) {
         jStateChanges.push_back({
             {"Name", events.second.getName()},
@@ -383,28 +396,6 @@ void EventRegistry::writeLog(std::ostream & out)
   out << std::setw(2) << js << std::endl;
 }
 
-
-void EventRegistry::printGlobalStats()
-{
-  Table t;
-  t.addColumn("Name", getMaxNameWidth());
-  t.addColumn("Max", 10);
-  t.addColumn("MaxOnRank", 10);
-  t.addColumn("Min", 10);
-  t.addColumn("MinOnRank", 10);
-  t.addColumn("Min/Max", 10);
-  t.printHeader();
-
-  auto stats = getGlobalStats(globalRankData);
-  for (auto & e : stats) {
-    auto & ev = e.second;
-    double rel = 0;
-    if (ev.max != stdy_clk::duration::zero()) // Guard against division by zero
-      rel = static_cast<double>(ev.min.count()) / ev.max.count();
-      
-    t.printRow(e.first, ev.max, ev.maxRank, ev.min, ev.minRank, rel);
-  }
-}
 
 MPI_Comm const & EventRegistry::getMPIComm() const
 {
@@ -564,8 +555,8 @@ std::pair<sys_clk::time_point, sys_clk::time_point> EventRegistry::findFirstAndL
                                 [] (T a, T b)
                                 { return a.initializedAt < b.initializedAt; });
   auto last = std::max_element(std::begin(globalRankData), std::end(globalRankData),
-                                [] (T a, T b)
-                                { return a.finalizedAt < b.finalizedAt; });
+                               [] (T a, T b)
+                               { return a.finalizedAt < b.finalizedAt; });
 
   return std::make_pair(first->initializedAt, last->finalizedAt);
  

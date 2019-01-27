@@ -30,18 +30,30 @@ Column::Column(std::string const & name, int width, int precision) :
 }
 
 
+Table::Table()
+  :
+  out(std::cout)
+{}
+
+
+Table::Table(std::ostream & out)
+  :
+  out(out)
+{}
+
+
 void Table::printHeader()
 {
   using namespace std;
 
   for (auto & h : cols) {
-    *out << padding << setw(h.width) << h.name << padding << sepChar;
+    out << padding << setw(h.width) << h.name << padding << sepChar;
   }
 
-  *out << endl;
+  out << endl;
   int headerLength = std::accumulate(cols.begin(), cols.end(), 0, [this](int count, Column col){
     return count + col.width + sepChar.size() + 2;
     });
   std::string sepLine(headerLength, '-');
-  *out << sepLine << endl;
+  out << sepLine << endl;
 }

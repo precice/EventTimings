@@ -142,13 +142,12 @@ public:
   /// Prints a pretty report to stdout and a JSON report to appName-events.json
   void printAll();
 
-  /// Prints the result table to an arbitrary stream.
-  void writeTimings(std::ostream &out);
+  /// Prints the result table to an arbitrary stream, only prints at rank 0.
+  void writeSummary(std::ostream & out);
 
-  void writeLog(std::ostream & out);
+  /// Writes the aggregated timings and state changes at JSON, only at rank 0.
+  void writeJSON(std::ostream & out);
   
-  void printGlobalStats();
-
   MPI_Comm const & getMPIComm() const;
 
   /// Currently active prefix. Changing that applies only to newly created events.

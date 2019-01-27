@@ -27,9 +27,11 @@ public:
   std::vector<Column> cols;
   std::string sepChar = "|";
   char padding = ' ';
-  std::ostream* out = &std::cout;
+  std::ostream & out = std::cout;
 
-  Table() {};
+  Table();
+  
+  Table(std::ostream & out);
 
   /// Adds a column of given name, width and float precision
   template<class... T>
@@ -52,8 +54,7 @@ public:
   template<class T, class ... Ts>
   void printRow(size_t index, T a, Ts... args)
   {
-    // std::cout << "Precision1 for " << cols[index].name << " = " << cols[index].precision << std::endl;
-    *out << padding << std::setw(cols[index].width) << std::setprecision(cols[index].precision)
+    out << padding << std::setw(cols[index].width) << std::setprecision(cols[index].precision)
          << a << padding << sepChar;
     printRow(index+1, args...);
   }
@@ -62,9 +63,8 @@ public:
   template<class Rep, class Period, class ... Ts>
   void printRow(size_t index, std::chrono::duration<Rep, Period> duration, Ts... args)
   {
-    // std::cout << "Precision2 for " << cols[index].name << " = " << cols[index].precision << std::endl;
     double ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-    *out << padding << std::setw(cols[index].width) << std::setprecision(cols[index].precision)
+    out << padding << std::setw(cols[index].width) << std::setprecision(cols[index].precision)
          << ms << padding << sepChar;
     printRow(index+1, args...);
   }
@@ -73,8 +73,7 @@ public:
   template<class T>
   void printRow(size_t index, T a)
   {
-    // std::cout << "Precision3 for " << cols[index].name << " = " << cols[index].precision << std::endl;
-    *out << padding << std::setw(cols[index].width) << std::setprecision(cols[index].precision)
+    out << padding << std::setw(cols[index].width) << std::setprecision(cols[index].precision)
          << a << padding << sepChar << std::endl;
   }
 

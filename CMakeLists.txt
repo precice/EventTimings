@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 3.9)
 project(EventTimings LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -17,20 +17,25 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STRE
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter")
 endif()
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
 find_package(MPI REQUIRED)
-include_directories(${MPI_INCLUDE_PATH})
-set(COMPILE_FLAGS  ${COMPILE_FLAGS} ${MPI_COMPILE_FLAGS})
-set(LINK_FLAGS ${LINK_FLAGS} ${MPI_LINK_FLAGS})
 
-add_library(EventTimings EventUtils.cpp Event.cpp TableWriter.cpp)
 
-add_executable(testevents testevents.cpp EventUtils.cpp Event.cpp TableWriter.cpp)
-target_link_libraries(testevents ${MPI_LIBRARIES})
-# target_link_libraries(testevents EventTimings)
+include_directories("src")
+add_subdirectory("src")
 
-add_executable(testtable testtable.cpp TableWriter.cpp)
+add_library(EventTimings ${sourcesEventTimings})
+target_compile_features(EventTimings PUBLIC cxx_std_11)
+target_link_libraries(EventTimings PUBLIC MPI::MPI_CXX)
+
+set_target_properties(EventTimings PROPERTIES PUBLIC_HEADER
+  "src/Event.hpp src/EventUtils.hpp")
+
+# We do not link against EventTimings here, but compile it in.
+# This makes debugging easier.
+add_executable(testevents ${sourcesTestevents})
+target_link_libraries(testevents PRIVATE MPI::MPI_CXX)
+
+add_executable(testtable ${sourcesTesttable})
 # target_link_libraries(testtable TableWriter)
 
 

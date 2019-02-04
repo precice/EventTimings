@@ -11,7 +11,7 @@ The tool is also available as a [standalone](https://github.com/catapult-project
 # Usage
 
 ```sh
-log2trace.py -p -b def A=./Events-A.log B=./Events-B.log
+log2trace.py -p -k 0 1 2 A=./Events-A.log B=./Events-B.log
 ```
 
 | Parameter | Description |
@@ -20,7 +20,6 @@ log2trace.py -p -b def A=./Events-A.log B=./Events-B.log
 | `-p`, `--pretty` | Outputs the JSON structure in a human-friendly format. |
 | `-d`, `--default`| Overwrites the default category name (`default`) for unknown events. |
 | `-m`, `--mapping`| A JSON file with a mapping from event name to category |
-| `-r`, `--run`    | Only output results of the given run. |
 | `-g`, `--noglobal` | Ignore the global event. |
 | `-k`, `--ranks`  | Only output the given ranks. |
 | `APPLICATION=LOGFILE ...` | Reads a logfile for each application. |

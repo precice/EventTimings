@@ -49,6 +49,8 @@ def check_and_parse_args():
                         help="Only output the given ranks.")
     parser.add_argument("-t", "--maxtime", type = int, default = -1,
                         help = "Maximum time stamp to convert, milliseconds after init of first rank.")
+    parser.add_argument("--no-normalize", action = "store_true",
+                        help = "Disable time normalization amoung participants")
 
 
     if len(sys.argv) == 1:
@@ -110,9 +112,10 @@ def main():
 
     logs = args.logs.items()
     pids = range(len(logs))
-    jsons = normalize_times(*[json.load(open(i[1])) for i in logs])
-    # jsons = [json.load(open(i[1])) for i in logs]
-        
+    jsons = [json.load(open(i[1])) for i in logs]
+    if not args.no_normalize:
+        jsons = normalize_times(*jsons)
+    
     # The output will be in the JSONArray format described in the specification
     traces = []
     for pid, participant, data in zip(pids, logs, jsons):

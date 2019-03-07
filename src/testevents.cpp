@@ -47,14 +47,16 @@ void testevents() {
   // }
 
   Event e1("Testevent");
-  e1.data.push_back(rank * 5);  e1.data.push_back(rank * 7); e1.data.push_back(rank * 8);
+  e1.addData("myDataA", (rank+1) * 5);
+  e1.addData("myDataA", (rank+1) * 7);
+  e1.addData("myOtherData", rank * 8);
   
-  sleep(100 * (rank+1));
-  e1.stop();
+  // sleep(100 * (rank+1));
+  // e1.stop();
 
-  e1.start();
-  sleep(150 * (rank+1));
-  e1.stop();
+  // e1.start();
+  // sleep(150 * (rank+1));
+  // e1.stop();
 
   Event e2("Anothertestevent");
   sleep(500 * (rank+1));
@@ -69,14 +71,14 @@ void testevents() {
   // e3.stop();
 
   // Solver loop
-  {
-    ScopedEventPrefix sep("pref/");
-    for (int i = 0; i < 3; ++i) {
-      solve();
-      advance();
-    }
-  }
-  Event e3("PostScopeEvent");
+  // {
+  //   ScopedEventPrefix sep("pref/");
+  //   for (int i = 0; i < 3; ++i) {
+  //     solve();
+  //     advance();
+  //   }
+  // }
+  // Event e3("PostScopeEvent");
   
 }
 
@@ -85,7 +87,6 @@ int main(int argc, char *argv[])
   MPI_Init(&argc, &argv);
   EventRegistry::instance().initialize();
 
-  ScopedEventPrefix sep("root/");
   testevents();
   
   EventRegistry::instance().finalize();

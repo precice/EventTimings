@@ -14,8 +14,8 @@ class EventData
 public:
   explicit EventData(std::string _name);
 
-  EventData(std::string _name, long _count, long _total,
-            long _max, long _min, std::vector<int> _data, Event::StateChanges stateChanges);
+  EventData(std::string _name, long _count, long _total, long _max, long _min,
+            Event::Data data, Event::StateChanges stateChanges);
 
   /// Adds an Events data.
   void put(Event const & event);
@@ -37,7 +37,7 @@ public:
   /// Get the number of all events so far
   long getCount() const;
 
-  std::vector<int> const & getData() const;
+  Event::Data const & getData() const;
 
   Event::Clock::duration max = Event::Clock::duration::min();
   Event::Clock::duration min = Event::Clock::duration::max();
@@ -48,10 +48,10 @@ public:
 private:
   std::string name;
   long count = 0;
-  std::vector<int> data;
+  std::map<std::string, std::vector<int>> data;
 };
 
-/// All EventData of one particular rank
+/// Holds all EventData of one particular rank
 class RankData
 {
 public:

@@ -72,6 +72,11 @@ Event::Clock::duration Event::getDuration() const
   return duration;
 }
 
+void Event::addData(std::string key, int value)
+{
+  data[key].push_back(value);
+}
+
 // -----------------------------------------------------------------------
 
 ScopedEventPrefix::ScopedEventPrefix(std::string const & name)

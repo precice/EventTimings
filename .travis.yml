@@ -1,0 +1,20 @@
+language: cpp
+dist: xenial
+sudo: false
+
+compiler:
+  - gcc
+  - clang
+
+addons:
+  apt:
+    packages:
+      - libopenmpi-dev
+      - openmpi-bin
+      - cmake
+
+script:
+  - mkdir $TRAVIS_BUILD_DIR/build
+  - cd $TRAVIS_BUILD_DIR/build
+  - cmake ..
+  - make

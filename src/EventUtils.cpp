@@ -512,10 +512,8 @@ void EventRegistry::collect()
           int count = 0;
           MPI_Probe(i, MPI_ANY_TAG, comm, &status);
           MPI_Get_count(&status, MPI_CHAR, &count);
-          char *buf = new char[count];
-          MPI_Recv(buf, count, MPI_CHAR, i, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
-          std::string key(buf, count);
-          delete[] buf;
+          std::string key(count, '\0');
+          MPI_Recv(&key[0], count, MPI_CHAR, i, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
           MPI_Probe(i, MPI_ANY_TAG, comm, &status);
           MPI_Get_count(&status, MPI_INT, &count);
           std::vector<int> val(count);

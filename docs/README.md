@@ -50,10 +50,10 @@ EventRegistry.instance().getStoredEvent("A stored Event");
 it needs to be started and stopped explicitly.
 
 ### Ataching data to Events
-You can attach data to an Event:
+You can attach named data to an Event:
 ```
 Event e1("Testevent");
-e1.data.push_back(iterations);
+e1.addData("IterationCount", iterations);
 ```
 Currently, only integer data is supported. It can be used to store iterations or residuals. The data is collected for each Event and printed with the timings.
 
@@ -65,11 +65,7 @@ EventRegistry::instance().printAll();
 it also creates or appends to two files `applicationName-eventTimings.log` which contains aggregated timing information and `applicationName-events.log`, which logs all state changes of Events and is used by auxiliary scripts for plotting or further statistical insights. 
 
 ## Reporting Scripts
-### Display Events on a timeline
-`multiPlotEventLog.py` can display an arbitrary `applicationName-events.log` file on timeline, so that you see what is going on and can identify dependencies between ranks.
-
 ### Transform Events to the trace format
-`logs2trace.py` can combine arbitrary `applicationName-events.log` files and output a JSON file in the trace format.
-The chromium trace tool `chrome://tracing` can read and display this format.
-[Read more](log2trace.md)
+`logs2trace.py` can combine arbitrary `applicationName-events.json` files and output a JSON file in the trace format.
+The chromium trace tool `chrome://tracing` can read and display this format. [Read more](log2trace.md)
 

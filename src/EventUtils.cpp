@@ -158,7 +158,7 @@ void RankData::finalize()
 
 void RankData::put(Event const & event)
 {
-  /// Construct or return EventData object with name as key and name as arg to ctor.
+  /// Constructs or returns EventData object with name as key and name as arg to ctor.
   auto data = std::get<0>(evData.emplace(std::piecewise_construct,
                                          std::forward_as_tuple(event.name),
                                          std::forward_as_tuple(event.name)));

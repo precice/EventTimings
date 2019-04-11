@@ -38,4 +38,4 @@ target_link_libraries(testevents PRIVATE MPI::MPI_CXX)
 add_executable(testtable ${sourcesTesttable})
 # target_link_libraries(testtable TableWriter)
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/log2trace.py DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/events2trace.py DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

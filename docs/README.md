@@ -66,6 +66,6 @@ it also creates or appends to two files `applicationName-eventTimings.log` which
 
 ## Reporting Scripts
 ### Transform Events to the trace format
-`logs2trace.py` can combine arbitrary `applicationName-events.json` files and output a JSON file in the trace format.
-The chromium trace tool `chrome://tracing` can read and display this format. [Read more](log2trace.md)
+`events2trace.py` can combine arbitrary `applicationName-events.json` files and output a JSON file in the trace format.
+The chromium trace tool `chrome://tracing` can read and display this format. [Read more](events2trace.md)
 

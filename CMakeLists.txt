@@ -96,5 +96,7 @@ export(EXPORT EventTimingsTargets
   NAMESPACE EventTimings::
   FILE "EventTimingsTargets.cmake")
 file(COPY cmake/EventTimingsConfig.cmake DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+# Add Alias for subprojects
+add_library(EventTimings::EventTimings ALIAS EventTimings)
 
 install(FILES extra/events2trace.py DESTINATION share/EventTimings)

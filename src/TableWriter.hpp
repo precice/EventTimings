@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+namespace EventTimings {
+
 struct Column
 {
   std::string name;
@@ -79,3 +81,5 @@ public:
 
 
 };
+
+}

@@ -5,6 +5,8 @@
 #include <string>
 #include <map>
 
+namespace EventTimings {
+
 /// Represents an event that can be started and stopped.
 /** Additionally to the duration there is a special property that can be set for a event.
 A property is a a key-value pair with a numerical value that can be used to trace certain events,
@@ -83,3 +85,5 @@ private:
 
   std::string previousName = "";
 };
+
+}

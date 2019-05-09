@@ -13,6 +13,8 @@
 #include "prettyprint.hpp"
 #include "TableWriter.hpp"
 
+namespace EventTimings {
+
 using sys_clk = std::chrono::system_clock;
 using stdy_clk = std::chrono::steady_clock;
 
@@ -586,3 +588,4 @@ std::pair<sys_clk::time_point, sys_clk::time_point> EventRegistry::findFirstAndL
  
 }
 
+}

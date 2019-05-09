@@ -7,6 +7,7 @@
 #include <string>
 #include <mpi.h>
 
+namespace EventTimings {
 
 /// Class that aggregates durations for a specific event.
 class EventData
@@ -196,4 +197,4 @@ private:
   MPI_Comm comm;
 };
 
-
+}

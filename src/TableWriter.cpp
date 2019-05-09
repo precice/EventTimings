@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+namespace EventTimings {
 
 Column::Column(std::string const & name)
   : name(name),
@@ -56,4 +57,6 @@ void Table::printHeader()
     });
   std::string sepLine(headerLength, '-');
   out << sepLine << endl;
+}
+
 }

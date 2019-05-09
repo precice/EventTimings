@@ -1,5 +1,5 @@
-#include "Event.hpp"
-#include "EventUtils.hpp"
+#include "EventTimings/Event.hpp"
+#include "EventTimings/EventUtils.hpp"
 
 Event::Event(std::string eventName, Clock::duration initialDuration)
   : name(EventRegistry::instance().prefix + eventName),

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Event.hpp"
+#include "EventTimings/Event.hpp"
 #include <chrono>
 #include <map>
 #include <vector>

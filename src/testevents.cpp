@@ -2,7 +2,7 @@
 #include <iostream>
 #include <random>
 #include <mpi.h>
-#include "EventUtils.hpp"
+#include "EventTimings/EventUtils.hpp"
 
 using std::cout;
 using std::endl;

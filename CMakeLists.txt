@@ -1,41 +1,100 @@
-cmake_minimum_required (VERSION 3.9)
-project(EventTimings LANGUAGES CXX)
+cmake_minimum_required (VERSION 3.9.6)
+project(EventTimings VERSION 1.0.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build." FORCE)
-  # Set the possible values of build type for cmake-gui
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif()
-message(STATUS "Build configuration: " ${CMAKE_BUILD_TYPE})
-
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter")
+# CMake <= 3.13
+if(POLICY CMP0076)
+  cmake_policy(SET CMP0076 NEW)
 endif()
 
 find_package(MPI REQUIRED)
 
-
-include_directories("src")
-add_subdirectory("src")
-
-add_library(EventTimings ${sourcesEventTimings})
-target_compile_features(EventTimings PUBLIC cxx_std_11)
+add_library(EventTimings src/dummy.cpp)
+set_target_properties(EventTimings PROPERTIES
+  CXX_STANDARD 11
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  PUBLIC_HEADER "include/EventTimings/Event.hpp;include/EventTimings/EventUtils.hpp"
+  )
+target_include_directories(EventTimings
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+  )
+target_sources(EventTimings
+  PRIVATE
+  src/Event.cpp
+  src/EventUtils.cpp
+  src/TableWriter.cpp
+  )
 target_link_libraries(EventTimings PUBLIC MPI::MPI_CXX)
 
-set_target_properties(EventTimings PROPERTIES PUBLIC_HEADER
-  "src/Event.hpp src/EventUtils.hpp")
 
+#
+# Tests
+#
+
+enable_testing()
+
+# Note:
 # We do not link against EventTimings here, but compile it in.
 # This makes debugging easier.
-add_executable(testevents ${sourcesTestevents})
+add_executable(testevents
+  src/testevents.cpp
+  src/Event.cpp
+  src/EventUtils.cpp
+  src/TableWriter.cpp
+  )
 target_link_libraries(testevents PRIVATE MPI::MPI_CXX)
+target_include_directories(testevents PRIVATE src include)
+set_target_properties(testevents PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+add_test(NAME EventTimings.events COMMAND testevents)
 
-add_executable(testtable ${sourcesTesttable})
-# target_link_libraries(testtable TableWriter)
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/src/events2trace.py DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+add_executable(testtable 
+  src/testtable.cpp
+  src/TableWriter.cpp
+  )
+target_include_directories(testtable PRIVATE src include)
+set_target_properties(testtable PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED ON)
+add_test(NAME EventTimings.table COMMAND testtable)
+
+
+#
+# Installation
+#
+
+install(TARGETS EventTimings
+  EXPORT EventTimingsTargets
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  PUBLIC_HEADER DESTINATION include/EventTimings
+  INCLUDES DESTINATION include/EventTimings
+)
+
+install(EXPORT EventTimingsTargets
+  FILE EventTimingsTargets.cmake
+  NAMESPACE EventTimings::
+  DESTINATION lib/cmake/EventTimings
+)
+
+# Generate Version Config
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file("EventTimingsConfigVersion.cmake"
+  VERSION ${EventTimings_VERSION}
+  COMPATIBILITY SameMajorVersion
+  )
+
+# Install the Config and the ConfigVersion files
+install(FILES "cmake/EventTimingsConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/EventTimingsConfigVersion.cmake"
+  DESTINATION lib/cmake/EventTimings
+)
+
+# Setup Config in the Binary Directory
+export(EXPORT EventTimingsTargets
+  NAMESPACE EventTimings::
+  FILE "EventTimingsTargets.cmake")
+file(COPY cmake/EventTimingsConfig.cmake DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+install(FILES extra/events2trace.py DESTINATION share/EventTimings)

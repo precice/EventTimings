@@ -1,6 +1,8 @@
 #include "EventTimings/Event.hpp"
 #include "EventTimings/EventUtils.hpp"
 
+namespace EventTimings  {
+
 Event::Event(std::string eventName, Clock::duration initialDuration)
   : name(EventRegistry::instance().prefix + eventName),
     duration(initialDuration)
@@ -88,4 +90,6 @@ ScopedEventPrefix::ScopedEventPrefix(std::string const & name)
 ScopedEventPrefix::~ScopedEventPrefix()
 {
   EventRegistry::instance().prefix = previousName;
+}
+
 }

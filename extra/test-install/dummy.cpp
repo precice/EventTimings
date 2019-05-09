@@ -4,8 +4,9 @@
 
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
-    EventRegistry::instance().initialize();
-    EventRegistry::instance().finalize();
-    EventRegistry::instance().printAll();
+    auto& registry = EventTimings::EventRegistry::instance();
+    registry.initialize();
+    registry.finalize();
+    registry.printAll();
     MPI_Finalize();
 }

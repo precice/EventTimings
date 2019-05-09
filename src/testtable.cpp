@@ -4,7 +4,7 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
-  Table t;
+  EventTimings::Table t;
   t.addColumn("headerEins");
   t.addColumn("header2");
   t.addColumn("n", 10, 2);

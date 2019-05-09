@@ -6,6 +6,7 @@
 
 using std::cout;
 using std::endl;
+using namespace EventTimings;
 
 
 double rand(double min, double max) {

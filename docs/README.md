@@ -2,6 +2,14 @@
 
 ## Usage
 
+### Basics
+Import the main header
+```
+#include "EventTimings/Events.hpp"
+#include "EventTimings/EventUtils.hpp"
+```
+All classes and functions are in the namespace `EventTimings::`.
+
 ### Initialization
 Initalize the timing framework at program start:
 ```

@@ -11,7 +11,7 @@ The tool is also available as a [standalone](https://github.com/catapult-project
 # Usage
 
 ```sh
-events2trace.py -p -k 0 1 2 A=./A-events.json B=./B-events.json
+events2trace.py -p -k 0 1 2 -- A=./A-events.json B=./B-events.json
 ```
 
 | Parameter | Description |

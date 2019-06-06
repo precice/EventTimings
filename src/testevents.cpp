@@ -88,7 +88,9 @@ int main(int argc, char *argv[])
   MPI_Init(&argc, &argv);
   EventRegistry::instance().initialize();
 
-  testevents();
+  // testevents();
+
+  Event("Anothertestevent");
   
   EventRegistry::instance().finalize();
   EventRegistry::instance().printAll();

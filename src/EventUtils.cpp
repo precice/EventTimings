@@ -28,6 +28,15 @@ void dbgprint(const std::string& format, Args&&... args)
 }
 
 
+/// Catches divide by zero, returns zero then.
+template<typename A, typename B> double divOrZero(A a, B b)
+{
+  if (b == 0)
+    return 0;
+  else
+    return a / b;
+}
+
 /// Converts the time_point into a string like "2019-01-10T18:30:46.834"
 std::string timepoint_to_string(sys_clk::time_point c)
 {
@@ -329,7 +338,7 @@ void EventRegistry::writeSummary(std::ostream &out)
       for (auto & e : localRankData.evData) {
         auto & ev = e.second;
         table.printRow(ev.getName(), ev.getCount(), ev.getTotal(), ev.getMax(),  ev.getMin(), ev.getAvg(),
-                       ev.getTotal() / duration);
+                       divOrZero(ev.getTotal(), duration));
       }
     }
     out << endl << endl;
@@ -381,7 +390,7 @@ void EventRegistry::writeJSON(std::ostream & out)
         {"Total", e.getTotal()},
         {"Max", e.getMax()},
         {"Min", e.getMin()},
-        {"TimeRatio", e.getTotal() / duration},
+        {"TimeRatio", divOrZero(e.getTotal(), duration)},
         {"Data" , e.getData()}
       };
       for (auto const & sc : e.stateChanges) {

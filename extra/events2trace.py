@@ -66,10 +66,11 @@ def eprint(*args, **kwargs):
 def normalize_times(*args):
     """ Normalize times to first t0 amoung all participants. """
     # Find the minimum Initialized time among all participants
-    minT = min([datetime.datetime.fromisoformat(d["Initialized"]) for d in args])
+    fmt_str =  r"%Y-%m-%dT%H:%M:%S.%f" # replaces the fromisoformatm, not available in python 3.6
+    minT = min([datetime.datetime.strptime(d["Initialized"], fmt_str) for d in args])
     
     for d in args:
-        init = datetime.datetime.fromisoformat(d["Initialized"])
+        init = datetime.datetime.strptime(d["Initialized"], fmt_str)
         delta = init - minT
         for ranks in d["Ranks"]:
             for sc in ranks["StateChanges"]:

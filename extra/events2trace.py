@@ -1,4 +1,4 @@
-#!/bin/env python3
+#!/usr/bin/env python3
 """
 Assembles a trace file for the chromium tracing tool using multiple log files and prints the result.
 

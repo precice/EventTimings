@@ -5,7 +5,7 @@
 ### Basics
 Import the main header
 ```
-#include "EventTimings/Events.hpp"
+#include "EventTimings/Event.hpp"
 #include "EventTimings/EventUtils.hpp"
 ```
 All classes and functions are in the namespace `EventTimings::`.

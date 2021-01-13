@@ -13,11 +13,11 @@ All classes and functions are in the namespace `EventTimings::`.
 ### Initialization
 Initalize the timing framework at program start:
 ```
-EventRegistry.instance().initialize("applicationName");
+EventRegistry::instance().initialize("applicationName");
 ```
 finalize the same way
 ```
-EventRegistry.instance().finalize();
+EventRegistry::instance().finalize();
 ```
 `"applicationName"` is optional and is used for naming the output files.
 
@@ -53,7 +53,7 @@ The barrier can be used to synchronize measurements across the MPI communicator.
 
 If you don't want an `Event` to be stopped when it goes out of scope, you can retrieve a so called stored `Event`
 ```
-EventRegistry.instance().getStoredEvent("A stored Event");
+EventRegistry::instance().getStoredEvent("A stored Event");
 ```
 it needs to be started and stopped explicitly.
 
